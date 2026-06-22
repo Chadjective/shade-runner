@@ -1,0 +1,21 @@
+{
+  "name": "shade-runner",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Stay cool. Stay alive. A third-person runner where the sun is your enemy.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "vite": "^5.4.10"
+  }
+}

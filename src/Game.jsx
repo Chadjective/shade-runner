@@ -1,0 +1,274 @@
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import SunSystem from './systems/SunSystem.js';
+import ShadeDetector from './systems/ShadeDetector.js';
+import HealthSystem from './systems/HealthSystem.js';
+import PlayerController from './systems/PlayerController.js';
+import buildLevel1 from './level/Level1.js';
+import {
+  AMBIENT_SKY_COLOR,
+  AMBIENT_GROUND_COLOR,
+  SKY_DAWN,
+} from './utils/constants.js';
+
+/**
+ * Game owns the imperative Three.js world and the per-frame game loop. React
+ * only handles the surrounding UI; this component bridges the two by reporting
+ * lightweight stats up through onStats and firing onDeath / onWin once.
+ *
+ * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
+ * with a "click to resume" overlay; regaining it resumes.
+ */
+export default function Game({ onStats, onDeath, onWin }) {
+  const mountRef = useRef(null);
+  const [paused, setPaused] = useState(true);
+  const startRef = useRef(null); // function to (re)start the run + grab the mouse
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // ---- renderer / scene / camera ----
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(SKY_DAWN);
+    scene.fog = new THREE.Fog(SKY_DAWN, 60, 260);
+
+    const camera = new THREE.PerspectiveCamera(62, width / height, 0.1, 600);
+
+    // Cool fill so shaded areas read as cool-blue rather than pitch black.
+    const hemi = new THREE.HemisphereLight(AMBIENT_SKY_COLOR, AMBIENT_GROUND_COLOR, 1.05);
+    scene.add(hemi);
+
+    // ---- systems ----
+    const sun = new SunSystem(scene);
+    const level = buildLevel1();
+    scene.add(level.group);
+    const shade = new ShadeDetector(level.occluders);
+    const health = new HealthSystem();
+    const player = new PlayerController(scene, renderer.domElement);
+    player.reset(level.startPos, level.startYaw);
+    player.enable();
+    player.snapCamera(camera);
+
+    // Compute world matrices once up front so the shade raycaster is accurate
+    // from frame zero (and from the headless QA harness, which steps without
+    // rendering). The static occluders never move, so this single pass holds.
+    scene.updateMatrixWorld(true);
+
+    // ---- run state / pointer lock / pause ----
+    // The simulation advances whenever the run is "active". Pointer lock is
+    // best-effort mouse capture layered on top: if the browser grants it,
+    // losing it (Esc) pauses the run; if it denies it, the game still plays —
+    // mouse-look just isn't recentered. This keeps the game from soft-locking
+    // on the pause screen when a browser refuses pointer lock.
+    const el = renderer.domElement;
+    let running = false;
+    let hadLock = false;
+
+    const requestLock = () => {
+      try {
+        const r = el.requestPointerLock();
+        if (r && typeof r.catch === 'function') r.catch(() => {});
+      } catch (_) {
+        /* browser may throttle rapid requests */
+      }
+    };
+
+    const setRunning = (v) => {
+      running = v;
+      player.lookEnabled = v;
+      setPaused(!v);
+    };
+    const startRun = () => {
+      setRunning(true);
+      requestLock();
+    };
+    startRef.current = startRun;
+
+    const onLockChange = () => {
+      const locked = document.pointerLockElement === el;
+      if (locked) hadLock = true;
+      else if (hadLock && running) setRunning(false); // lost the lock -> pause
+      player.lookEnabled = running;
+    };
+    const onCanvasClick = () => {
+      if (!running) startRun();
+      else if (document.pointerLockElement !== el) requestLock();
+    };
+    const onEscKey = (e) => {
+      if (e.code === 'Escape' && running) {
+        if (document.pointerLockElement === el) document.exitPointerLock();
+        setRunning(false);
+      }
+    };
+    document.addEventListener('pointerlockchange', onLockChange);
+    el.addEventListener('click', onCanvasClick);
+    window.addEventListener('keydown', onEscKey);
+
+    // ---- resize ----
+    const onResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', onResize);
+
+    // ---- loop ----
+    let raf = 0;
+    let last = performance.now();
+    let elapsed = 0;
+    let finished = false;
+    const reported = { health: -1, time: -1, inSun: null, prog: -1 };
+
+    const report = () => {
+      const hp = Math.ceil(health.health);
+      const t10 = Math.floor(elapsed * 10);
+      const prog100 = Math.floor(sun.getProgress() * 100);
+      if (hp !== reported.health || t10 !== reported.time || health.inSun !== reported.inSun || prog100 !== reported.prog) {
+        reported.health = hp;
+        reported.time = t10;
+        reported.inSun = health.inSun;
+        reported.prog = prog100;
+        onStats({
+          health: health.health,
+          inSun: health.inSun,
+          exposure: health.exposure,
+          time: elapsed,
+          sunProgress: sun.getProgress(),
+        });
+      }
+    };
+
+    // One simulation tick. Extracted so the rAF loop and the (optional) debug
+    // harness drive identical logic.
+    const step = (dt) => {
+      sun.update(dt, player.getPosition());
+      player.update(dt, level.colliders, camera);
+      const inSun = shade.isInSun(player.getPosition(), sun.toSun);
+      health.update(dt, inSun);
+      elapsed += dt;
+
+      if (level.finishBox.containsPoint(player.getPosition())) {
+        finished = true;
+        document.exitPointerLock();
+        onWin({ time: elapsed, health: health.health });
+      } else if (health.dead) {
+        finished = true;
+        document.exitPointerLock();
+        onDeath({ time: elapsed });
+      }
+      report();
+    };
+
+    const frame = (now) => {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+
+      if (running && !finished) {
+        step(dt);
+      } else {
+        // keep the sun disc / camera coherent without advancing game state
+        sun.update(0, player.getPosition());
+      }
+
+      renderer.render(scene, camera);
+    };
+    raf = requestAnimationFrame(frame);
+
+    // ---- optional QA harness (only with ?debug in the URL) ----
+    // Lets the simulation be driven deterministically without relying on rAF
+    // (which the browser suspends for hidden/background tabs). Ships harmlessly
+    // — it does nothing unless ?debug is present.
+    let debugHandle = null;
+    if (new URLSearchParams(window.location.search).has('debug')) {
+      debugHandle = {
+        step,
+        setRunning,
+        press: (code) => { player.keys[code] = true; },
+        release: (code) => { player.keys[code] = false; },
+        clearKeys: () => { player.keys = Object.create(null); },
+        faceForward: () => { player.yaw = 0; },
+        teleport: (x, y, z) => player.mesh.position.set(x, y, z),
+        setHealth: (v) => { health.health = v; health.dead = false; },
+        state: () => ({
+          pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
+          health: +health.health.toFixed(1),
+          inSun: health.inSun,
+          onGround: player.onGround,
+          elapsed: +elapsed.toFixed(2),
+          sunProgress: +sun.getProgress().toFixed(3),
+          sunElevation: +sun.getElevationDeg().toFixed(1),
+          finished,
+        }),
+        // Advance `seconds` of sim at a fixed 60Hz step. Stops early on win/death.
+        sim: (seconds, opts = {}) => {
+          const dt = 1 / 60;
+          let t = 0;
+          while (t < seconds && !finished) {
+            if (opts.god) health.health = 100;
+            step(dt);
+            t += dt;
+          }
+          return debugHandle.state();
+        },
+        finishBox: { min: level.finishBox.min.toArray(), max: level.finishBox.max.toArray() },
+      };
+      window.__shade = debugHandle;
+    }
+
+    // ---- cleanup ----
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onEscKey);
+      document.removeEventListener('pointerlockchange', onLockChange);
+      el.removeEventListener('click', onCanvasClick);
+      player.disable();
+      if (document.pointerLockElement === el) document.exitPointerLock();
+      scene.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          mats.forEach((m) => m.dispose());
+        }
+      });
+      renderer.dispose();
+      // dispose() frees GL resources but not the context itself; force it so a
+      // restart (which mounts a fresh renderer) can't exhaust the browser's
+      // limited pool of WebGL contexts.
+      renderer.forceContextLoss();
+      if (el.parentNode) el.parentNode.removeChild(el);
+      if (debugHandle && window.__shade === debugHandle) delete window.__shade;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="game-root">
+      <div ref={mountRef} />
+      {paused && (
+        <div className="overlay pause">
+          <div className="headline">Paused</div>
+          <p className="sub">The mouse is free. Click below to recapture it and keep running.</p>
+          <button className="btn" onClick={() => startRef.current && startRef.current()}>
+            Resume
+          </button>
+          <div className="hint">WASD move · Mouse look · Space jump · Esc pause</div>
+        </div>
+      )}
+    </div>
+  );
+}
