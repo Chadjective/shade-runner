@@ -105,6 +105,13 @@ export default class PlayerController {
     this._animPhase = 0;
     this._animTime = 0;
 
+    // Footstep emission — incremented each time a foot plants while running, so
+    // the SweatSystem can stamp a droplet exactly under the planting foot.
+    this.footstepId = 0;
+    this._footSide = 1;
+    this._lastSin = 0;
+    this.lastFootstep = new THREE.Vector3();
+
     return group;
   }
 
@@ -138,6 +145,22 @@ export default class PlayerController {
       this.armR.rotation.x = s * 0.7 * amp;
       this.rig.position.y = Math.abs(Math.sin(this._animPhase)) * 0.05 * amp;
       this.rig.rotation.x = 0.16 * amp;
+
+      // A foot plants each time the swing crosses neutral — alternate feet and
+      // record the world position under the planting foot for the sweat trail.
+      if ((this._lastSin <= 0 && s > 0) || (this._lastSin >= 0 && s < 0)) {
+        this._footSide = -this._footSide;
+        const yaw = this.mesh.rotation.y;
+        const rx = Math.cos(yaw);
+        const rz = -Math.sin(yaw);
+        this.lastFootstep.set(
+          this.mesh.position.x + rx * this._footSide * 0.18,
+          0.04,
+          this.mesh.position.z + rz * this._footSide * 0.18
+        );
+        this.footstepId++;
+      }
+      this._lastSin = s;
     } else {
       // Idle: settle limbs to neutral, breathe.
       const k = 1 - Math.pow(0.02, dt);
@@ -175,6 +198,9 @@ export default class PlayerController {
     // Reset the animation rig to a neutral pose.
     this._animPhase = 0;
     this._animTime = 0;
+    this.footstepId = 0;
+    this._footSide = 1;
+    this._lastSin = 0;
     if (this.rig) {
       this.rig.position.y = 0;
       this.rig.rotation.x = 0;

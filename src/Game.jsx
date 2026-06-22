@@ -5,6 +5,7 @@ import ShadeDetector from './systems/ShadeDetector.js';
 import HealthSystem from './systems/HealthSystem.js';
 import PlayerController from './systems/PlayerController.js';
 import ItemSystem from './systems/ItemSystem.js';
+import SweatSystem from './systems/SweatSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
@@ -58,6 +59,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const shade = new ShadeDetector(level.occluders);
     const health = new HealthSystem();
     const items = new ItemSystem(scene, level.items || []);
+    const sweat = new SweatSystem(scene);
     const player = new PlayerController(scene, renderer.domElement);
     player.reset(level.startPos, level.startYaw);
     player.enable();
@@ -177,6 +179,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
         pickupLabel = picked[picked.length - 1];
         pickupId++;
       }
+      sweat.update(dt, player, health);
       elapsed += dt;
 
       if (level.finishBox.containsPoint(player.getPosition())) {
@@ -235,6 +238,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           items: items.items.map((i) => ({ type: i.type, taken: i.taken })),
           legSwing: player.legL ? +player.legL.rotation.x.toFixed(3) : 0,
           lean: player.rig ? +player.rig.rotation.x.toFixed(3) : 0,
+          sweatActive: sweat.activeCount(),
           finished,
         }),
         // Advance `seconds` of sim at a fixed 60Hz step. Stops early on win/death.
