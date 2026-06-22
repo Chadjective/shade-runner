@@ -368,3 +368,125 @@ canvas {
   text-transform: uppercase;
   opacity: 0.8;
 }
+
+/* ---------------------------------------------------- HUD: level + buffs --- */
+.level-name {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 6px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.buff {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffd9a8;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.buff-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.buff-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd27a, #ff8a3c);
+  transition: width 0.1s linear;
+}
+
+.pickup-toast {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: rgba(10, 16, 40, 0.7);
+  border: 2px solid rgba(120, 200, 255, 0.6);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #cfe9ff;
+  backdrop-filter: blur(4px);
+  animation: toastPop 1.6s ease forwards;
+}
+
+@keyframes toastPop {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(0.9); }
+  15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -14px) scale(1); }
+}
+
+/* ------------------------------------------------------ menu level cards --- */
+.level-cards {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 720px;
+  margin-top: 4px;
+}
+
+.level-card {
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 320px;
+  max-width: 90vw;
+  text-align: left;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.level-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(120, 200, 255, 0.55);
+}
+
+.level-card-num {
+  font-size: 26px;
+  font-weight: 800;
+  opacity: 0.55;
+  min-width: 26px;
+}
+
+.level-card-body { display: flex; flex-direction: column; gap: 3px; }
+.level-card-name { font-size: 16px; font-weight: 700; letter-spacing: 0.02em; }
+.level-card-sub { font-size: 12px; opacity: 0.7; line-height: 1.35; }
+
+/* ghost button for secondary actions on end screens */
+.btn-ghost {
+  pointer-events: auto;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: #fff;
+  border-radius: 999px;
+  padding: 10px 26px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  transition: background 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.1); opacity: 1; }

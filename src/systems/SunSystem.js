@@ -26,11 +26,16 @@ const DEG = Math.PI / 180;
  * ray along it.
  */
 export default class SunSystem {
-  constructor(scene) {
+  constructor(scene, opts = {}) {
     this.scene = scene;
     this.toSun = new THREE.Vector3(0, 1, 0);
     this.elapsed = 0;
     this.progress = 0;
+
+    // Per-level overrides fall back to the global tuning defaults.
+    this.cycle = opts.cycle ?? SUN_CYCLE_DURATION;
+    this.startAngle = opts.startAngle ?? SUN_START_ANGLE;
+    this.endAngle = opts.endAngle ?? SUN_END_ANGLE;
 
     // The sun itself.
     const light = new THREE.DirectionalLight(SUN_LIGHT_COLOR, 3.2);
@@ -71,7 +76,7 @@ export default class SunSystem {
   /** Position of the sun relative to a focus point, given current arc state. */
   _computeDirection() {
     const p = this.progress;
-    const elevation = THREE.MathUtils.lerp(SUN_START_ANGLE, SUN_END_ANGLE, p) * DEG;
+    const elevation = THREE.MathUtils.lerp(this.startAngle, this.endAngle, p) * DEG;
     const azimuth = THREE.MathUtils.lerp(SUN_AZIMUTH_START, SUN_AZIMUTH_END, p) * DEG;
 
     const cosE = Math.cos(elevation);
@@ -87,7 +92,7 @@ export default class SunSystem {
    */
   update(dt, focus) {
     this.elapsed += dt;
-    this.progress = Math.min(this.elapsed / SUN_CYCLE_DURATION, 1);
+    this.progress = Math.min(this.elapsed / this.cycle, 1);
     this._computeDirection();
 
     // Light target tracks the player on the ground; light sits up the toSun ray.
@@ -116,6 +121,6 @@ export default class SunSystem {
 
   /** Current sun elevation in degrees (for debugging / future tuning). */
   getElevationDeg() {
-    return THREE.MathUtils.lerp(SUN_START_ANGLE, SUN_END_ANGLE, this.progress);
+    return THREE.MathUtils.lerp(this.startAngle, this.endAngle, this.progress);
   }
 }

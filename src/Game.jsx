@@ -4,7 +4,8 @@ import SunSystem from './systems/SunSystem.js';
 import ShadeDetector from './systems/ShadeDetector.js';
 import HealthSystem from './systems/HealthSystem.js';
 import PlayerController from './systems/PlayerController.js';
-import buildLevel1 from './level/Level1.js';
+import ItemSystem from './systems/ItemSystem.js';
+import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
   AMBIENT_GROUND_COLOR,
@@ -19,7 +20,7 @@ import {
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -50,11 +51,13 @@ export default function Game({ onStats, onDeath, onWin }) {
     scene.add(hemi);
 
     // ---- systems ----
-    const sun = new SunSystem(scene);
-    const level = buildLevel1();
+    const levelDef = LEVELS[levelIndex] || LEVELS[0];
+    const level = levelDef.build();
     scene.add(level.group);
+    const sun = new SunSystem(scene, level.sun);
     const shade = new ShadeDetector(level.occluders);
     const health = new HealthSystem();
+    const items = new ItemSystem(scene, level.items || []);
     const player = new PlayerController(scene, renderer.domElement);
     player.reset(level.startPos, level.startYaw);
     player.enable();
@@ -130,23 +133,34 @@ export default function Game({ onStats, onDeath, onWin }) {
     let last = performance.now();
     let elapsed = 0;
     let finished = false;
-    const reported = { health: -1, time: -1, inSun: null, prog: -1 };
+    let pickupLabel = '';
+    let pickupId = 0;
+    const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
     const report = () => {
       const hp = Math.ceil(health.health);
       const t10 = Math.floor(elapsed * 10);
       const prog100 = Math.floor(sun.getProgress() * 100);
-      if (hp !== reported.health || t10 !== reported.time || health.inSun !== reported.inSun || prog100 !== reported.prog) {
+      if (
+        hp !== reported.health || t10 !== reported.time || health.inSun !== reported.inSun ||
+        prog100 !== reported.prog || pickupId !== reported.pickup
+      ) {
         reported.health = hp;
         reported.time = t10;
         reported.inSun = health.inSun;
         reported.prog = prog100;
+        reported.pickup = pickupId;
         onStats({
           health: health.health,
           inSun: health.inSun,
           exposure: health.exposure,
           time: elapsed,
           sunProgress: sun.getProgress(),
+          sunscreen: health.sunscreen,
+          level: levelIndex,
+          levelName: levelDef.name,
+          pickup: pickupLabel,
+          pickupId,
         });
       }
     };
@@ -158,6 +172,11 @@ export default function Game({ onStats, onDeath, onWin }) {
       player.update(dt, level.colliders, camera);
       const inSun = shade.isInSun(player.getPosition(), sun.toSun);
       health.update(dt, inSun);
+      const picked = items.update(dt, player.getPosition(), health);
+      if (picked.length) {
+        pickupLabel = picked[picked.length - 1];
+        pickupId++;
+      }
       elapsed += dt;
 
       if (level.finishBox.containsPoint(player.getPosition())) {
@@ -203,14 +222,19 @@ export default function Game({ onStats, onDeath, onWin }) {
         faceForward: () => { player.yaw = 0; },
         teleport: (x, y, z) => player.mesh.position.set(x, y, z),
         setHealth: (v) => { health.health = v; health.dead = false; },
+        jump: () => { player.keys.Space = true; },
         state: () => ({
           pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
           health: +health.health.toFixed(1),
           inSun: health.inSun,
           onGround: player.onGround,
+          sunscreen: +health.sunscreen.toFixed(1),
           elapsed: +elapsed.toFixed(2),
           sunProgress: +sun.getProgress().toFixed(3),
           sunElevation: +sun.getElevationDeg().toFixed(1),
+          items: items.items.map((i) => ({ type: i.type, taken: i.taken })),
+          legSwing: player.legL ? +player.legL.rotation.x.toFixed(3) : 0,
+          lean: player.rig ? +player.rig.rotation.x.toFixed(3) : 0,
           finished,
         }),
         // Advance `seconds` of sim at a fixed 60Hz step. Stops early on win/death.

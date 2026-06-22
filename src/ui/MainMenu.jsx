@@ -1,20 +1,32 @@
 /**
- * Start screen. The Start button is the user gesture that boots the run; the
- * actual pointer-lock grab happens on the first click inside the game.
+ * Start screen. "Start Run" begins at level 1; the level cards let you jump
+ * straight to any level. The actual pointer-lock grab happens on the first
+ * click inside the game.
  */
-export default function MainMenu({ onStart }) {
+export default function MainMenu({ levels, onStart }) {
   return (
     <div className="overlay menu">
       <div className="tagline">Stay cool. Stay alive.</div>
       <h1 className="title">SHADE<br />RUNNER</h1>
       <p className="sub">
         The sun is hunting you. Direct light burns your vitality away — only the
-        shade keeps you alive. But the sun climbs as you run, and the shadows
-        that shelter you now will shrink to nothing. Reach the covered pavilion
-        before you cook.
+        shade keeps you alive, and it shrinks as the sun climbs. Grab water and
+        sunscreen, pick your route, and reach the covered pavilion before you cook.
       </p>
 
-      <button className="btn" onClick={onStart}>▶ Start Run</button>
+      <button className="btn" onClick={() => onStart(0)}>▶ Start Run</button>
+
+      <div className="level-cards">
+        {levels.map((lv, i) => (
+          <button key={lv.id} className="level-card" onClick={() => onStart(i)}>
+            <span className="level-card-num">{i + 1}</span>
+            <span className="level-card-body">
+              <span className="level-card-name">{lv.name}</span>
+              <span className="level-card-sub">{lv.subtitle}</span>
+            </span>
+          </button>
+        ))}
+      </div>
 
       <div className="controls">
         <div className="key"><span className="keycap">W A S D</span>Move</div>

@@ -12,16 +12,17 @@ function rank(health) {
   return 'BARELY MADE IT';
 }
 
-/** Shown when the player reaches the covered pavilion alive. */
-export default function WinScreen({ result, onRestart }) {
+/** Final victory — shown after the last level. */
+export default function WinScreen({ result, onReplay, onMenu }) {
   return (
     <div className="overlay win">
-      <h1 className="headline won">YOU MADE IT</h1>
-      <p className="sub">Cool shade, solid roof, still breathing. The sun loses this round.</p>
+      <div className="tagline">Stay cool. Stay alive.</div>
+      <h1 className="headline won">YOU BEAT SHADE RUNNER</h1>
+      <p className="sub">Every shadow counted. The sun never laid a finger on the finish line.</p>
       <div className="stat-row">
         <div className="stat">
           <div className="stat-num">{formatTime(result.time)}</div>
-          <div className="stat-cap">Finish Time</div>
+          <div className="stat-cap">Final Time</div>
         </div>
         <div className="stat">
           <div className="stat-num">{Math.ceil(result.health)}%</div>
@@ -32,8 +33,8 @@ export default function WinScreen({ result, onRestart }) {
           <div className="stat-cap">Rank</div>
         </div>
       </div>
-      <button className="btn cool" onClick={onRestart}>↻ Run Again</button>
-      <div className="hint">Chase a faster time — or a cleaner, higher-vitality run.</div>
+      <button className="btn cool" onClick={onReplay}>↻ Run It Again</button>
+      <button className="btn-ghost" onClick={onMenu}>Main Menu</button>
     </div>
   );
 }

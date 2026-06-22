@@ -9,6 +9,12 @@ export const MAX_HEALTH = 100;
 export const SUN_DAMAGE_RATE = 10; // HP drained per second in direct sun
 export const SHADE_RECOVERY_RATE = 3; // HP recovered per second in shade
 
+// --- Items / pickups -------------------------------------------------------
+export const WATER_HEAL = 35; // HP restored instantly by a water bottle
+export const SUNSCREEN_DURATION = 9; // seconds of sun protection
+export const SUNSCREEN_DAMAGE_MULT = 0.3; // sun damage multiplier while protected
+export const ITEM_PICKUP_RADIUS = 1.5; // how close you must get to grab an item
+
 // --- Movement --------------------------------------------------------------
 export const PLAYER_SPEED = 8; // ground run speed, units/sec
 export const PLAYER_ACCEL = 60; // how quickly we reach top speed (snappy)

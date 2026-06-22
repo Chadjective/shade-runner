@@ -209,10 +209,19 @@ export default function buildLevel1() {
     new THREE.Vector3(4, 6, finishZ + 4)
   );
 
+  // -- pickups --------------------------------------------------------------
+  const items = [
+    { type: 'water', x: 3, y: 1.0, z: -68 }, // market: a reward slightly off the racing line
+    { type: 'sunscreen', x: 0, y: 1.0, z: -119 }, // right before the boulevard sun gauntlet
+  ];
+
   return {
+    name: 'The Canyon',
+    subtitle: 'A straight shot through the shade. Learn the heat.',
     group,
     colliders,
     occluders,
+    items,
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

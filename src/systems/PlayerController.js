@@ -53,36 +53,101 @@ export default class PlayerController {
     this._onMouseMove = (e) => this._look(e);
   }
 
+  /**
+   * Build a simple low-poly runner from primitives — torso, head, two arms,
+   * two legs — with each limb on its own pivot group so it can swing. The whole
+   * body sits under `this.rig` so we can bob/lean it without disturbing the
+   * logical center (mesh.position stays the collision center). Local +Z is the
+   * figure's front, which lines up with the movement-facing in update().
+   */
   _buildMesh() {
     const group = new THREE.Group();
 
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x3d8bff,
-      roughness: 0.55,
-      metalness: 0.05,
-      emissive: 0x0a1c44,
-      emissiveIntensity: 0.4,
-    });
-    const cylLen = PLAYER_HEIGHT - PLAYER_RADIUS * 2;
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(PLAYER_RADIUS, cylLen, 6, 14),
-      bodyMat
-    );
-    body.castShadow = true;
-    group.add(body);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3d8bff, roughness: 0.55, metalness: 0.05, emissive: 0x0a1c44, emissiveIntensity: 0.4 });
+    const limbMat = new THREE.MeshStandardMaterial({ color: 0x2f6fd0, roughness: 0.6, emissive: 0x081634, emissiveIntensity: 0.4 });
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x9ec5ff, roughness: 0.5 });
+    const faceMat = new THREE.MeshStandardMaterial({ color: 0xfff0c0, emissive: 0xffcf6a, emissiveIntensity: 0.9, roughness: 0.3 });
 
-    // A bright "visor" on the +Z face so its facing direction is readable.
-    const faceMat = new THREE.MeshStandardMaterial({
-      color: 0xfff0c0,
-      emissive: 0xffcf6a,
-      emissiveIntensity: 0.9,
-      roughness: 0.3,
-    });
-    const face = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.18, 0.12), faceMat);
-    face.position.set(0, 0.35, PLAYER_RADIUS - 0.02);
-    group.add(face);
+    const rig = new THREE.Group();
+    group.add(rig);
+    this.rig = rig;
+
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), bodyMat);
+    torso.position.y = 0.12;
+    torso.castShadow = true;
+    rig.add(torso);
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.34), headMat);
+    head.position.y = 0.64;
+    head.castShadow = true;
+    rig.add(head);
+
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.12, 0.06), faceMat);
+    visor.position.set(0, 0.66, 0.18);
+    rig.add(visor);
+
+    // A limb is a pivot group with the box hanging `len` below the joint, so
+    // rotating the pivot about X swings the limb forward/back.
+    const makeLimb = (w, len) => {
+      const pivot = new THREE.Group();
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, w), limbMat);
+      m.position.y = -len / 2;
+      m.castShadow = true;
+      pivot.add(m);
+      return pivot;
+    };
+
+    this.armL = makeLimb(0.15, 0.6); this.armL.position.set(-0.33, 0.42, 0); rig.add(this.armL);
+    this.armR = makeLimb(0.15, 0.6); this.armR.position.set(0.33, 0.42, 0); rig.add(this.armR);
+    this.legL = makeLimb(0.18, 0.82); this.legL.position.set(-0.15, -0.08, 0); rig.add(this.legL);
+    this.legR = makeLimb(0.18, 0.82); this.legR.position.set(0.15, -0.08, 0); rig.add(this.legR);
+
+    this._animPhase = 0;
+    this._animTime = 0;
 
     return group;
+  }
+
+  /**
+   * Procedural run / jump / idle animation, driven by current speed and whether
+   * the player is on the ground. No skeletal assets — just sine-driven limb
+   * swing, a forward lean and a vertical bob while running, a tuck in the air,
+   * and a gentle breathing settle at rest.
+   */
+  animate(dt) {
+    this._animTime += dt;
+    const speed = Math.hypot(this.velocity.x, this.velocity.z);
+    const running = speed > 0.4 && this.onGround;
+
+    if (!this.onGround) {
+      // Airborne: ease into a tuck with arms up.
+      const k = 1 - Math.pow(0.0008, dt);
+      this.legL.rotation.x = lerp(this.legL.rotation.x, -0.6, k);
+      this.legR.rotation.x = lerp(this.legR.rotation.x, 0.4, k);
+      this.armL.rotation.x = lerp(this.armL.rotation.x, -2.1, k);
+      this.armR.rotation.x = lerp(this.armR.rotation.x, -2.1, k);
+      this.rig.rotation.x = lerp(this.rig.rotation.x, 0.08, k);
+      this.rig.position.y = lerp(this.rig.position.y, 0, k);
+    } else if (running) {
+      const amp = Math.min(speed / PLAYER_SPEED, 1);
+      this._animPhase += dt * (7 + amp * 7);
+      const s = Math.sin(this._animPhase);
+      this.legL.rotation.x = s * 0.9 * amp;
+      this.legR.rotation.x = -s * 0.9 * amp;
+      this.armL.rotation.x = -s * 0.7 * amp;
+      this.armR.rotation.x = s * 0.7 * amp;
+      this.rig.position.y = Math.abs(Math.sin(this._animPhase)) * 0.05 * amp;
+      this.rig.rotation.x = 0.16 * amp;
+    } else {
+      // Idle: settle limbs to neutral, breathe.
+      const k = 1 - Math.pow(0.02, dt);
+      this.legL.rotation.x = lerp(this.legL.rotation.x, 0, k);
+      this.legR.rotation.x = lerp(this.legR.rotation.x, 0, k);
+      this.armL.rotation.x = lerp(this.armL.rotation.x, 0, k);
+      this.armR.rotation.x = lerp(this.armR.rotation.x, 0, k);
+      this.rig.rotation.x = lerp(this.rig.rotation.x, 0, k);
+      this.rig.position.y = Math.sin(this._animTime * 2) * 0.015;
+    }
   }
 
   enable() {
@@ -106,6 +171,16 @@ export default class PlayerController {
     this.onGround = false;
     this.timeSinceGround = 0;
     this.keys = Object.create(null);
+
+    // Reset the animation rig to a neutral pose.
+    this._animPhase = 0;
+    this._animTime = 0;
+    if (this.rig) {
+      this.rig.position.y = 0;
+      this.rig.rotation.x = 0;
+      this.armL.rotation.x = this.armR.rotation.x = 0;
+      this.legL.rotation.x = this.legR.rotation.x = 0;
+    }
   }
 
   _setKey(e, down) {
@@ -187,6 +262,7 @@ export default class PlayerController {
     }
 
     this._updateCamera(camera);
+    this.animate(dt);
   }
 
   /** One pass of AABB resolution. Returns true if standing on something. */
@@ -274,4 +350,8 @@ function lerpAngle(a, b, t) {
   let diff = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
   if (diff < -Math.PI) diff += Math.PI * 2;
   return a + diff * t;
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
 }

@@ -4,10 +4,11 @@ function formatTime(sec) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** Shown when vitality hits zero. */
-export default function GameOver({ result, onRestart }) {
+/** Shown when vitality hits zero. Retries the same level. */
+export default function GameOver({ result, levelName, onRestart }) {
   return (
     <div className="overlay gameover">
+      {levelName && <div className="tagline">{levelName}</div>}
       <h1 className="headline dead">BURNT OUT</h1>
       <p className="sub">The sun caught you in the open. The pavement did the rest.</p>
       <div className="stat-row">
@@ -17,7 +18,7 @@ export default function GameOver({ result, onRestart }) {
         </div>
       </div>
       <button className="btn" onClick={onRestart}>↻ Try Again</button>
-      <div className="hint">Stay under cover longer — recovery beats a reckless sprint.</div>
+      <div className="hint">Grab the sunscreen, duck under cover, and don't sprint blind.</div>
     </div>
   );
 }
