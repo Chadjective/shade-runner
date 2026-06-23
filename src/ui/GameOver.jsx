@@ -16,6 +16,10 @@ export default function GameOver({ result, levelName, onRestart }) {
           <div className="stat-num">{formatTime(result.time)}</div>
           <div className="stat-cap">Survived</div>
         </div>
+        <div className="stat">
+          <div className="stat-num">{result.streak ?? 0}s</div>
+          <div className="stat-cap">Best Cool Streak</div>
+        </div>
       </div>
       <button className="btn" onClick={onRestart}>↻ Try Again</button>
       <div className="hint">Grab the sunscreen, duck under cover, and don't sprint blind.</div>
