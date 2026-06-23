@@ -25,16 +25,19 @@ substantial subsystem or collision-heavy work.
 ## 🔧 Cross-cutting infrastructure (build these first — they unblock many items)
 
 These refactors make the rest of the phases small instead of medium.
+**Status: `ZoneSystem` ✅ and partial-shade ✅ shipped. `AudioSystem` + `MovingShadow` still to do.**
 
-- **`ZoneSystem`** (M) — unify all "stand-in-an-area → effect" logic. A level lists
+- **`ZoneSystem`** (M) — ✅ **DONE** — unify all "stand-in-an-area → effect" logic. A level lists
   `zones: [{ shape, type, ...params }]` where type ∈ `cool | hazard | speed | skid | partial-shade | wet`. Replaces the ad-hoc cooling-zone check and powers hot asphalt, mud, mist, puddles, skybridges in one place. Each zone optionally builds a prop.
-- **Partial shade in `ShadeDetector`** (S–M) — return a 0..1 occlusion factor (e.g. tinted glass = 0.5) instead of a hard boolean, so Game can scale damage. Enables skybridges and cloud cover cleanly.
+- **Partial shade in `ShadeDetector`** (S–M) — ✅ **DONE** — return a 0..1 occlusion factor (e.g. tinted glass = 0.5) instead of a hard boolean, so Game can scale damage. Enables skybridges and cloud cover cleanly.
 - **`AudioSystem`** (M) — WebAudio bus with: sun sizzle (louder with exposure), cool ambient in shade, wind, footsteps, pickup blips, flare warning sting. The original scope deferred audio; it's the single biggest "feel" upgrade left.
 - **`MovingShadow` helper** (S) — generalize `TrafficSystem`'s "occluder + per-frame matrix + Box3" so blimps, clouds, NPCs, and debris reuse it.
 
 ---
 
-## Phase A — Surfaces & hazards (high synergy, mostly S once `ZoneSystem` exists)
+## Phase A — Surfaces & hazards ✅ SHIPPED
+
+All six built via `ZoneSystem` + partial shade and placed across L1–L3 (verified with the `?debug` harness). Detail kept below for reference.
 
 - **🔥 Hot asphalt / reflective glass** (M) — zones that deal contact damage which **scales with sun height**, and whose hot-spots **move** as the sun climbs (reflections sweep). Synergy: sun arc, health, sunglasses (glare).
 - **🪟 Tinted skybridges** (S, needs partial-shade) — overhead glass = **half-damage** middle ground between sun and shade. Synergy: shade raycast, verticality.
