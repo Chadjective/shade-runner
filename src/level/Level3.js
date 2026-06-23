@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeFountain } from './props.js';
+import { makeFountain, makeVent } from './props.js';
 
 /**
  * Level 3 — "The Long Mile". The big one: ~305 units, roughly the length of
@@ -141,6 +141,11 @@ export default function buildLevel3() {
   group.add(fountain.mesh);
   colliders.push(fountain.collider);
 
+  // -- updraft vent in the gauntlet: launch + glide over the hot stretch ----
+  const vent = makeVent(-8, -230, 7);
+  group.add(vent.mesh);
+  const updrafts = [{ x: -8, z: -230, r: 1.5, top: 7 }];
+
   // -- construction climb (off the racing line; optional shade decks) -------
   addBox(-3, 2.4, -268, 7, 0.3, 6, 0x8a8f9c, { roughness: 0.6 });
   addBox(3, 4.4, -278, 7, 0.3, 6, 0x8a8f9c, { roughness: 0.6 });
@@ -216,9 +221,12 @@ export default function buildLevel3() {
     finishBox,
     finishCenter: new THREE.Vector3(0, 0, finishZ),
     courseLength: Math.abs(finishZ),
+    updrafts,
     // Longer course -> a longer day so the danger ramp matches the run length.
     sun: { cycle: 95, startAngle: 16 },
     // Exposed crosstown run — gustier than the others.
     wind: { gustMax: 1.2, period: 7.5 },
+    // Heatwave finale: solar flares and dust storms roll through.
+    weather: { events: ['flare', 'dust'], calm: 12 },
   };
 }

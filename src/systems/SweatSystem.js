@@ -77,11 +77,11 @@ export default class SweatSystem {
    * @param {import('./PlayerController.js').default} player
    * @param {import('./HealthSystem.js').default} health
    */
-  update(dt, player, health) {
+  update(dt, player, health, suppressEmit = false) {
     const speed = Math.hypot(player.velocity.x, player.velocity.z);
     const moving = speed > 0.6;
 
-    if (health.inSun && moving) {
+    if (health.inSun && moving && !suppressEmit) {
       // Body sweat — faster when hotter (exposure climbs the longer you bake).
       this.bodyTimer -= dt;
       if (this.bodyTimer <= 0) {

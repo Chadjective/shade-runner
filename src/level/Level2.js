@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeFountain } from './props.js';
+import { makeFountain, makeVent } from './props.js';
 
 /**
  * Level 2 — "The Interchange". A multi-path, multi-level course.
@@ -133,6 +133,11 @@ export default function buildLevel2() {
     { from: [walkway, 3.5, -56], to: [-1.5, 2.2, -73] },
   ];
 
+  // -- updraft vent: an express boost up onto the high-road walkway ---------
+  const vent = makeVent(-10.5, -20, 4.8);
+  group.add(vent.mesh);
+  const updrafts = [{ x: -10.5, z: -20, r: 1.5, top: 4.8 }];
+
   // -- pickups: umbrella at the fork, sunscreen high, water low -------------
   const items = [
     { type: 'hat', x: 0, y: 1.0, z: -8 }, // start
@@ -151,6 +156,8 @@ export default function buildLevel2() {
     items,
     coolZones,
     ziplines,
+    updrafts,
+    weather: { events: ['flare'] }, // periodic solar flares
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

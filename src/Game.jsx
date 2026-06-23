@@ -9,6 +9,7 @@ import SweatSystem from './systems/SweatSystem.js';
 import TrafficSystem from './systems/TrafficSystem.js';
 import ZiplineSystem from './systems/ZiplineSystem.js';
 import WindSystem from './systems/WindSystem.js';
+import WeatherSystem from './systems/WeatherSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
@@ -21,6 +22,13 @@ import {
   HAT_DAMAGE_MULT,
   STREAK_PER_MULT,
   STREAK_MAX_MULT,
+  RAIN_DAMAGE_MULT,
+  RAIN_HYDRATE_RATE,
+  RAIN_TRACTION,
+  FLARE_DAMAGE_MULT,
+  DUST_HYDRATION_DRAIN,
+  DUST_WIND_PUSH,
+  UPDRAFT_POWER,
 } from './utils/constants.js';
 
 const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!', hat: 'Hat!', sunglasses: 'Sunglasses!' };
@@ -77,7 +85,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const sweat = new SweatSystem(scene);
     const zip = new ZiplineSystem(scene, level.ziplines || []);
     const wind = new WindSystem(level.wind);
+    const weather = new WeatherSystem(level.weather || {});
     const coolZones = level.coolZones || [];
+    const updrafts = level.updrafts || [];
     const player = new PlayerController(scene, renderer.domElement);
     player.reset(level.startPos, level.startYaw);
     player.enable();
@@ -206,6 +216,11 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           windStrength: wind.strength,
           coolMult,
           coolStreak,
+          raining: weather.is('rain'),
+          flaring: weather.is('flare'),
+          dusting: weather.is('dust'),
+          flareWarn: weather.warningFor('flare'),
+          weatherIntensity: weather.intensity,
         });
       }
     };
@@ -217,9 +232,28 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       traffic.update(dt);
       zip.update(dt, player); // may set player.onZipline before player.update
       wind.update(dt);
-      player.windVec.copy(wind.vec);
-      player.windStrength = wind.strength;
+      weather.update(dt);
+      const raining = weather.is('rain');
+      const flaring = weather.is('flare');
+      const dusting = weather.is('dust');
+
+      // Wind (+ a dust storm's extra shove); wet ground gets skiddy.
+      const dustPush = dusting ? DUST_WIND_PUSH * weather.intensity : 0;
+      player.windStrength = wind.strength + dustPush;
+      player.windVec.copy(wind.dir).multiplyScalar(player.windStrength);
       player.heatDrift = health.inSun ? health.exposure : 0; // heatstroke wobble while baking
+      player.traction = raining ? RAIN_TRACTION : 1;
+
+      // Updraft vents launch you up the column (set before update so it carries).
+      const ppPre = player.getPosition();
+      for (let i = 0; i < updrafts.length; i++) {
+        const u = updrafts[i];
+        const dx = ppPre.x - u.x;
+        const dz = ppPre.z - u.z;
+        if (dx * dx + dz * dz < u.r * u.r && ppPre.y < (u.top ?? 6)) {
+          if (player.velocity.y < UPDRAFT_POWER) player.velocity.y = UPDRAFT_POWER;
+        }
+      }
       player.update(dt, level.colliders, camera);
 
       const pp = player.getPosition();
@@ -231,7 +265,13 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       const gearMult =
         (player.hasSunglasses && player.sunglassesOn ? SUNGLASSES_DAMAGE_MULT : 1) *
         (player.hasHat ? HAT_DAMAGE_MULT : 1);
-      health.update(dt, inSun, gearMult);
+      // Weather scales the sun: rain cools it right down, a flare spikes it.
+      let envMult = 1;
+      if (raining) envMult = RAIN_DAMAGE_MULT;
+      else if (flaring) envMult = FLARE_DAMAGE_MULT;
+      health.update(dt, inSun, gearMult * envMult);
+      if (raining) health.hydrate(RAIN_HYDRATE_RATE * dt);
+      if (dusting) health.hydration = Math.max(0, health.hydration - DUST_HYDRATION_DRAIN * dt);
 
       // Cooling zones (misters / fountains) recover health fast, even in sun.
       let cooling = false;
@@ -256,10 +296,12 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
         pickupLabel = ITEM_LABEL[type] || type;
         pickupId++;
       }
-      sweat.update(dt, player, health);
+      sweat.update(dt, player, health, raining); // rain washes the sweat away
 
-      // Cool-streak scoring: stay out of the sun to build a multiplier; burning resets it.
-      if (health.inSun) coolStreak = 0;
+      // Cool-streak scoring: stay out of the sun to build a multiplier; burning
+      // resets it — but rain counts as cool, so it doesn't break your streak.
+      const burning = health.inSun && !raining;
+      if (burning) coolStreak = 0;
       else coolStreak += dt;
       if (coolStreak > bestStreak) bestStreak = coolStreak;
       coolMult = Math.min(STREAK_MAX_MULT, 1 + Math.floor(coolStreak / STREAK_PER_MULT));
@@ -339,6 +381,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           dehydrated: health.dehydrated,
           windStrength: +wind.strength.toFixed(2),
           heatDrift: +player.heatDrift.toFixed(2),
+          traction: player.traction,
+          weather: weather.current || (weather.warningFor('flare') ? 'flare(warn)' : 'calm'),
+          weatherActive: weather.state === 'active',
           coolMult,
           bestStreak: +bestStreak.toFixed(1),
           vehiclesZ: traffic.vehicles.map((v) => +v.mesh.position.z.toFixed(1)),

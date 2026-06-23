@@ -46,3 +46,30 @@ export function makeFountain(x, z) {
 
   return { mesh: g, collider };
 }
+
+/**
+ * An updraft vent: a floor grate with a faint rising air column. Returns just
+ * the mesh; the caller registers a matching entry in `updrafts` so the player
+ * gets launched upward inside the column (great paired with the umbrella glide).
+ */
+export function makeVent(x, z, top = 6) {
+  const g = new THREE.Group();
+
+  const grate = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 0.12, 2),
+    new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.7, metalness: 0.3 })
+  );
+  grate.position.set(x, 0.06, z);
+  grate.receiveShadow = true;
+  g.add(grate);
+
+  // Faint shimmering air column so the lift reads.
+  const col = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9, 1.0, top, 12, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xdff1ff, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide })
+  );
+  col.position.set(x, top / 2, z);
+  g.add(col);
+
+  return { mesh: g };
+}

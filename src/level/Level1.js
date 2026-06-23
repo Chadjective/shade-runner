@@ -240,6 +240,7 @@ export default function buildLevel1() {
     items,
     coolZones,
     traffic,
+    weather: { events: ['rain'] }, // a passing shower partway through
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

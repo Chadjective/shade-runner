@@ -26,6 +26,7 @@ export default function HUD({ stats }) {
     hasUmbrella, umbrellaOpen, sheltered, cooling, onZipline,
     hasHat, hatStability = 1, hasSunglasses, sunglassesOn, sprinting, stamina = 1,
     hydration = MAX_HYDRATION, dehydrated, heat = 0, windStrength = 0, coolMult = 1, coolStreak = 0,
+    raining, flaring, dusting, flareWarn, weatherIntensity = 0,
   } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
   const hydraPct = Math.max(0, (hydration / MAX_HYDRATION) * 100);
@@ -56,10 +57,13 @@ export default function HUD({ stats }) {
   return (
     <>
       <div className="tint sun" style={{ opacity: sunTint }} />
-      <div className="tint shade" style={{ opacity: (cooling || (!inSun && health < MAX_HEALTH)) ? 0.18 : 0 }} />
+      <div className="tint shade" style={{ opacity: (cooling || raining || (!inSun && health < MAX_HEALTH)) ? 0.18 : 0 }} />
       <div className="tint haze" style={{ opacity: Math.min(0.9, haze) }} />
       <div className="tint blur" style={{ opacity: dehydrated ? 1 : 0 }} />
       <div className="tint glasses" style={{ opacity: sunglassesOn ? 1 : 0 }} />
+      <div className="tint rain" style={{ opacity: raining ? weatherIntensity : 0 }} />
+      <div className="tint dust" style={{ opacity: dusting ? weatherIntensity : 0 }} />
+      <div className="tint flare" style={{ opacity: flaring ? weatherIntensity * 0.8 : 0 }} />
 
       <div className="hud">
         <div className="health-wrap">
@@ -111,6 +115,11 @@ export default function HUD({ stats }) {
         {coolMult > 1 && (
           <div className="cool-streak">❄ COOL ×{coolMult} <span>{Math.floor(coolStreak)}s</span></div>
         )}
+
+        {flareWarn && <div className="weather-banner warn">⚠️ Solar Flare Incoming</div>}
+        {flaring && <div className="weather-banner flare">🔆 Solar Flare — get to shade!</div>}
+        {raining && !flaring && <div className="weather-banner rain">🌧️ Rain — cool, but slippery</div>}
+        {dusting && <div className="weather-banner dust">🌫️ Dust Storm</div>}
 
         <div className="timer">
           <div className="timer-label">Time</div>

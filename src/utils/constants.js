@@ -105,6 +105,20 @@ export const HEAT_DRIFT = 1.4; // sideways drift accel at full heat, in the sun
 export const STREAK_PER_MULT = 5; // seconds of staying cool per +1x
 export const STREAK_MAX_MULT = 8;
 
+// --- Weather events (rain / solar flare / dust storm) ----------------------
+export const WEATHER_CALM = 14; // seconds of calm between events
+export const WEATHER_DURATION = 7; // how long an event lasts
+export const FLARE_WARN = 1.8; // telegraph lead before a flare hits
+export const RAIN_DAMAGE_MULT = 0.1; // sun damage while it's raining (cooled off)
+export const RAIN_HYDRATE_RATE = 10; // hydration/sec regained in the rain
+export const RAIN_TRACTION = 0.4; // grip on wet ground (lower = more skid)
+export const FLARE_DAMAGE_MULT = 3; // sun damage spike during a solar flare
+export const DUST_HYDRATION_DRAIN = 8; // extra hydration/sec lost in a dust storm
+export const DUST_WIND_PUSH = 0.85; // extra wind strength during a dust storm
+
+// --- Updraft vents ---------------------------------------------------------
+export const UPDRAFT_POWER = 9; // upward velocity while standing in the column
+
 // --- World palette (warm sun / cool shade) ---------------------------------
 export const SUN_LIGHT_COLOR = 0xfff1d6; // warm sunlight
 export const AMBIENT_SKY_COLOR = 0x9fc6ff; // cool sky fill

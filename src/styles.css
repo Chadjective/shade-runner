@@ -214,6 +214,80 @@ canvas {
   to { transform: translateY(-5px) skewX(0.5deg); }
 }
 
+/* rain: diagonal streaks + cool wash */
+.tint.rain {
+  z-index: 8;
+  background:
+    repeating-linear-gradient(105deg, rgba(180, 210, 255, 0) 0 6px, rgba(180, 210, 255, 0.16) 6px 7px),
+    linear-gradient(rgba(30, 50, 90, 0.28), rgba(30, 50, 90, 0.28));
+  background-size: 14px 100%, 100% 100%;
+  animation: rainFall 0.35s linear infinite;
+}
+
+@keyframes rainFall {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: -7px 24px, 0 0; }
+}
+
+/* dust storm: brown haze that blurs and shoves across */
+.tint.dust {
+  z-index: 8;
+  background: linear-gradient(100deg, rgba(150, 110, 60, 0.42), rgba(120, 85, 45, 0.5));
+  backdrop-filter: blur(3px);
+  animation: dustDrift 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes dustDrift {
+  from { transform: translateX(-6px); }
+  to { transform: translateX(6px); }
+}
+
+/* solar flare: blinding white bloom */
+.tint.flare {
+  z-index: 9;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 250, 230, 0.95) 0%, rgba(255, 220, 150, 0.5) 45%, transparent 75%);
+}
+
+/* weather banner */
+.weather-banner {
+  position: absolute;
+  top: 104px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  backdrop-filter: blur(4px);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.weather-banner.warn {
+  background: rgba(255, 170, 40, 0.25);
+  border: 1px solid rgba(255, 200, 90, 0.8);
+  color: #ffe2a8;
+  animation: gustFlash 0.4s ease-in-out infinite alternate;
+}
+
+.weather-banner.flare {
+  background: rgba(255, 120, 40, 0.3);
+  border: 1px solid rgba(255, 180, 90, 0.9);
+  color: #fff0d8;
+}
+
+.weather-banner.rain {
+  background: rgba(60, 110, 200, 0.25);
+  border: 1px solid rgba(140, 190, 255, 0.7);
+  color: #d6e9ff;
+}
+
+.weather-banner.dust {
+  background: rgba(150, 110, 60, 0.35);
+  border: 1px solid rgba(210, 170, 110, 0.7);
+  color: #f0dcc0;
+}
+
 /* cool-streak multiplier chip */
 .cool-streak {
   position: absolute;
