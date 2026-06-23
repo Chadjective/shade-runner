@@ -13,19 +13,26 @@ import {
   MOUSE_SENSITIVITY,
   CAM_PITCH_MIN,
   CAM_PITCH_MAX,
+  UMBRELLA_SPEED_MULT,
+  SLIDE_DURATION,
+  SLIDE_SPEED_MULT,
+  SLIDE_COOLDOWN,
+  SLIDE_HEIGHT_MULT,
 } from '../utils/constants.js';
 
-const HALF = new THREE.Vector3(PLAYER_RADIUS, PLAYER_HEIGHT / 2, PLAYER_RADIUS);
+const FULL_HALF_Y = PLAYER_HEIGHT / 2;
 
 /**
- * PlayerController: a capsule you run around in third person.
+ * PlayerController: an animated runner in third person.
  *
- * - WASD moves relative to where the camera is looking.
- * - Mouse (under pointer lock) orbits the camera; the capsule turns to face
- *   its movement direction.
- * - Space jumps (with coyote-time grace and proper gravity).
- * - Collision is swept AABB vs. the level's box colliders, with min-penetration
- *   resolution so you can also land on top of platforms and ledges.
+ * - WASD moves relative to the camera; mouse (pointer lock) orbits it.
+ * - Space jumps (coyote-time grace + gravity); collision is swept AABB with
+ *   min-penetration resolution so you can also land on platforms.
+ * - Shift slides: a brief speed burst that lowers your collision box so you can
+ *   duck under low cover.
+ * - E toggles a picked-up umbrella open/closed (open = mobile shade but slower).
+ * - While riding a zipline the ZiplineSystem drives the position; we just pose
+ *   and follow with the camera.
  */
 export default class PlayerController {
   constructor(scene, domElement) {
@@ -36,6 +43,17 @@ export default class PlayerController {
     this.onGround = false;
     this.timeSinceGround = 0;
     this.lookEnabled = false;
+
+    // Collision half-extents (mutated during a slide).
+    this.half = new THREE.Vector3(PLAYER_RADIUS, FULL_HALF_Y, PLAYER_RADIUS);
+
+    // Ability state.
+    this.hasUmbrella = false;
+    this.umbrellaOpen = false;
+    this.sliding = false;
+    this.slideTime = 0;
+    this.slideCooldown = 0;
+    this.onZipline = false;
 
     this.keys = Object.create(null);
     this._tmpForward = new THREE.Vector3();
@@ -53,13 +71,6 @@ export default class PlayerController {
     this._onMouseMove = (e) => this._look(e);
   }
 
-  /**
-   * Build a simple low-poly runner from primitives — torso, head, two arms,
-   * two legs — with each limb on its own pivot group so it can swing. The whole
-   * body sits under `this.rig` so we can bob/lean it without disturbing the
-   * logical center (mesh.position stays the collision center). Local +Z is the
-   * figure's front, which lines up with the movement-facing in update().
-   */
   _buildMesh() {
     const group = new THREE.Group();
 
@@ -86,8 +97,6 @@ export default class PlayerController {
     visor.position.set(0, 0.66, 0.18);
     rig.add(visor);
 
-    // A limb is a pivot group with the box hanging `len` below the joint, so
-    // rotating the pivot about X swings the limb forward/back.
     const makeLimb = (w, len) => {
       const pivot = new THREE.Group();
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, w), limbMat);
@@ -102,11 +111,29 @@ export default class PlayerController {
     this.legL = makeLimb(0.18, 0.82); this.legL.position.set(-0.15, -0.08, 0); rig.add(this.legL);
     this.legR = makeLimb(0.18, 0.82); this.legR.position.set(0.15, -0.08, 0); rig.add(this.legR);
 
+    // Umbrella, carried at the right shoulder; hidden until picked up.
+    const umb = new THREE.Group();
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6),
+      new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.6 })
+    );
+    pole.position.y = 0.75;
+    umb.add(pole);
+    const canopy = new THREE.Mesh(
+      new THREE.ConeGeometry(0.95, 0.5, 18),
+      new THREE.MeshStandardMaterial({ color: 0xff5a3c, emissive: 0x400e04, emissiveIntensity: 0.5, roughness: 0.6 })
+    );
+    canopy.position.y = 1.55;
+    canopy.castShadow = true;
+    umb.add(canopy);
+    umb.position.set(0.34, 0.3, 0);
+    umb.visible = false;
+    rig.add(umb);
+    this.umbrella = umb;
+    this.umbrellaCanopy = canopy;
+
     this._animPhase = 0;
     this._animTime = 0;
-
-    // Footstep emission — incremented each time a foot plants while running, so
-    // the SweatSystem can stamp a droplet exactly under the planting foot.
     this.footstepId = 0;
     this._footSide = 1;
     this._lastSin = 0;
@@ -115,19 +142,37 @@ export default class PlayerController {
     return group;
   }
 
-  /**
-   * Procedural run / jump / idle animation, driven by current speed and whether
-   * the player is on the ground. No skeletal assets — just sine-driven limb
-   * swing, a forward lean and a vertical bob while running, a tuck in the air,
-   * and a gentle breathing settle at rest.
-   */
   animate(dt) {
     this._animTime += dt;
+
+    if (this.onZipline) {
+      // Hang from the cable: arms up, legs dangling.
+      const k = 1 - Math.pow(0.0008, dt);
+      this.armL.rotation.x = lerp(this.armL.rotation.x, -2.7, k);
+      this.armR.rotation.x = lerp(this.armR.rotation.x, -2.7, k);
+      this.legL.rotation.x = lerp(this.legL.rotation.x, 0.25, k);
+      this.legR.rotation.x = lerp(this.legR.rotation.x, -0.15, k);
+      this.rig.rotation.x = lerp(this.rig.rotation.x, 0, k);
+      this.rig.position.y = lerp(this.rig.position.y, 0, k);
+      return;
+    }
+
+    if (this.sliding) {
+      // Crouch low and lean forward.
+      const k = 1 - Math.pow(0.0001, dt);
+      this.rig.position.y = lerp(this.rig.position.y, -0.32, k);
+      this.rig.rotation.x = lerp(this.rig.rotation.x, 0.5, k);
+      this.legL.rotation.x = lerp(this.legL.rotation.x, -0.7, k);
+      this.legR.rotation.x = lerp(this.legR.rotation.x, 0.5, k);
+      this.armL.rotation.x = lerp(this.armL.rotation.x, -0.6, k);
+      this.armR.rotation.x = lerp(this.armR.rotation.x, -0.6, k);
+      return;
+    }
+
     const speed = Math.hypot(this.velocity.x, this.velocity.z);
     const running = speed > 0.4 && this.onGround;
 
     if (!this.onGround) {
-      // Airborne: ease into a tuck with arms up.
       const k = 1 - Math.pow(0.0008, dt);
       this.legL.rotation.x = lerp(this.legL.rotation.x, -0.6, k);
       this.legR.rotation.x = lerp(this.legR.rotation.x, 0.4, k);
@@ -146,8 +191,6 @@ export default class PlayerController {
       this.rig.position.y = Math.abs(Math.sin(this._animPhase)) * 0.05 * amp;
       this.rig.rotation.x = 0.16 * amp;
 
-      // A foot plants each time the swing crosses neutral — alternate feet and
-      // record the world position under the planting foot for the sweat trail.
       if ((this._lastSin <= 0 && s > 0) || (this._lastSin >= 0 && s < 0)) {
         this._footSide = -this._footSide;
         const yaw = this.mesh.rotation.y;
@@ -162,7 +205,6 @@ export default class PlayerController {
       }
       this._lastSin = s;
     } else {
-      // Idle: settle limbs to neutral, breathe.
       const k = 1 - Math.pow(0.02, dt);
       this.legL.rotation.x = lerp(this.legL.rotation.x, 0, k);
       this.legR.rotation.x = lerp(this.legR.rotation.x, 0, k);
@@ -195,7 +237,15 @@ export default class PlayerController {
     this.timeSinceGround = 0;
     this.keys = Object.create(null);
 
-    // Reset the animation rig to a neutral pose.
+    this.half.set(PLAYER_RADIUS, FULL_HALF_Y, PLAYER_RADIUS);
+    this.hasUmbrella = false;
+    this.umbrellaOpen = false;
+    this.sliding = false;
+    this.slideTime = 0;
+    this.slideCooldown = 0;
+    this.onZipline = false;
+    if (this.umbrella) this.umbrella.visible = false;
+
     this._animPhase = 0;
     this._animTime = 0;
     this.footstepId = 0;
@@ -209,15 +259,57 @@ export default class PlayerController {
     }
   }
 
+  // ---- abilities ----------------------------------------------------------
+  giveUmbrella() {
+    this.hasUmbrella = true;
+    this.umbrellaOpen = true;
+    if (this.umbrella) this.umbrella.visible = true;
+    this._applyUmbrellaPose();
+  }
+
+  _toggleUmbrella() {
+    this.umbrellaOpen = !this.umbrellaOpen;
+    this._applyUmbrellaPose();
+  }
+
+  _applyUmbrellaPose() {
+    if (!this.umbrella) return;
+    if (this.umbrellaOpen) {
+      this.umbrella.rotation.z = 0;
+      this.umbrellaCanopy.scale.setScalar(1);
+    } else {
+      this.umbrella.rotation.z = -1.25; // folded, carried at the side
+      this.umbrellaCanopy.scale.setScalar(0.32);
+    }
+  }
+
+  _startSlide() {
+    if (this.sliding || !this.onGround || this.slideCooldown > 0) return;
+    if (Math.hypot(this.velocity.x, this.velocity.z) < 1) return;
+    this.sliding = true;
+    this.slideTime = SLIDE_DURATION;
+    this.half.y = FULL_HALF_Y * SLIDE_HEIGHT_MULT;
+    this.mesh.position.y -= FULL_HALF_Y - this.half.y; // keep feet on the ground
+  }
+
+  _endSlide() {
+    if (!this.sliding) return;
+    const old = this.half.y;
+    this.half.y = FULL_HALF_Y;
+    this.mesh.position.y += FULL_HALF_Y - old;
+    this.sliding = false;
+    this.slideCooldown = SLIDE_COOLDOWN;
+  }
+
   _setKey(e, down) {
     const code = e.code;
-    if (
-      code === 'KeyW' || code === 'KeyA' || code === 'KeyS' || code === 'KeyD' ||
-      code === 'Space' || code === 'ArrowUp' || code === 'ArrowDown' ||
-      code === 'ArrowLeft' || code === 'ArrowRight' || code === 'ShiftLeft'
-    ) {
-      this.keys[code] = down;
-      if (code === 'Space') e.preventDefault();
+    if (!ALLOWED.has(code)) return;
+    const was = this.keys[code];
+    this.keys[code] = down;
+    if (code === 'Space') e.preventDefault();
+    if (down && !was) {
+      if (code === 'KeyE' && this.hasUmbrella) this._toggleUmbrella();
+      if (code === 'ShiftLeft' || code === 'ShiftRight') this._startSlide();
     }
   }
 
@@ -229,7 +321,6 @@ export default class PlayerController {
   }
 
   _wishDirection() {
-    // Camera-relative basis on the ground plane.
     this._tmpForward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     this._tmpRight.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
@@ -250,27 +341,42 @@ export default class PlayerController {
    * @param {THREE.Camera} camera
    */
   update(dt, colliders, camera) {
-    const wish = this._wishDirection();
-
-    // Horizontal acceleration toward the wished velocity (snappy but not instant).
-    const targetVX = wish.x * PLAYER_SPEED;
-    const targetVZ = wish.z * PLAYER_SPEED;
-    const accel = PLAYER_ACCEL * dt;
-    this.velocity.x = approach(this.velocity.x, targetVX, accel);
-    this.velocity.z = approach(this.velocity.z, targetVZ, accel);
-
-    // Jump (with coyote time so a frame-late press off a ledge still works).
-    this.timeSinceGround = this.onGround ? 0 : this.timeSinceGround + dt;
-    if (this.keys.Space && this.timeSinceGround <= COYOTE_TIME) {
-      this.velocity.y = JUMP_FORCE;
-      this.onGround = false;
-      this.timeSinceGround = COYOTE_TIME + 1; // consume; no double jump
+    // On a zipline, the ZiplineSystem owns position — just present & follow.
+    if (this.onZipline) {
+      this._updateCamera(camera);
+      this.animate(dt);
+      return;
     }
 
-    // Gravity.
+    // Slide timers.
+    if (this.sliding) {
+      this.slideTime -= dt;
+      if (this.slideTime <= 0) this._endSlide();
+    } else if (this.slideCooldown > 0) {
+      this.slideCooldown -= dt;
+    }
+
+    const wish = this._wishDirection();
+
+    let spd = PLAYER_SPEED;
+    if (this.umbrellaOpen) spd *= UMBRELLA_SPEED_MULT;
+    if (this.sliding) spd *= SLIDE_SPEED_MULT;
+
+    const accel = PLAYER_ACCEL * dt;
+    this.velocity.x = approach(this.velocity.x, wish.x * spd, accel);
+    this.velocity.z = approach(this.velocity.z, wish.z * spd, accel);
+
+    // Jump (cancels a slide).
+    this.timeSinceGround = this.onGround ? 0 : this.timeSinceGround + dt;
+    if (this.keys.Space && this.timeSinceGround <= COYOTE_TIME) {
+      if (this.sliding) this._endSlide();
+      this.velocity.y = JUMP_FORCE;
+      this.onGround = false;
+      this.timeSinceGround = COYOTE_TIME + 1;
+    }
+
     this.velocity.y -= GRAVITY * dt;
 
-    // Integrate then resolve.
     const p = this.mesh.position;
     p.x += this.velocity.x * dt;
     p.y += this.velocity.y * dt;
@@ -281,7 +387,6 @@ export default class PlayerController {
       if (this._resolve(p, colliders)) this.onGround = true;
     }
 
-    // Face the direction of travel.
     if (wish.lengthSq() > 1e-4) {
       const targetYaw = Math.atan2(wish.x, wish.z);
       this.mesh.rotation.y = lerpAngle(this.mesh.rotation.y, targetYaw, 1 - Math.pow(0.0001, dt));
@@ -291,22 +396,21 @@ export default class PlayerController {
     this.animate(dt);
   }
 
-  /** One pass of AABB resolution. Returns true if standing on something. */
   _resolve(p, colliders) {
+    const H = this.half;
     let grounded = false;
 
-    // Ground plane at y = 0.
-    if (p.y - HALF.y < 0) {
-      p.y = HALF.y;
+    if (p.y - H.y < 0) {
+      p.y = H.y;
       if (this.velocity.y < 0) this.velocity.y = 0;
       grounded = true;
     }
 
     for (let i = 0; i < colliders.length; i++) {
       const b = colliders[i];
-      const minX = p.x - HALF.x, maxX = p.x + HALF.x;
-      const minY = p.y - HALF.y, maxY = p.y + HALF.y;
-      const minZ = p.z - HALF.z, maxZ = p.z + HALF.z;
+      const minX = p.x - H.x, maxX = p.x + H.x;
+      const minY = p.y - H.y, maxY = p.y + H.y;
+      const minZ = p.z - H.z, maxZ = p.z + H.z;
 
       if (maxX <= b.min.x || minX >= b.max.x) continue;
       if (maxY <= b.min.y || minY >= b.max.y) continue;
@@ -319,25 +423,24 @@ export default class PlayerController {
       if (oy <= ox && oy <= oz) {
         const boxMidY = (b.min.y + b.max.y) * 0.5;
         if (p.y > boxMidY) {
-          p.y = b.max.y + HALF.y; // land on top
+          p.y = b.max.y + H.y;
           if (this.velocity.y < 0) this.velocity.y = 0;
           grounded = true;
         } else {
-          p.y = b.min.y - HALF.y; // bonk head
+          p.y = b.min.y - H.y;
           if (this.velocity.y > 0) this.velocity.y = 0;
         }
       } else if (ox <= oz) {
-        p.x = p.x > (b.min.x + b.max.x) * 0.5 ? b.max.x + HALF.x : b.min.x - HALF.x;
+        p.x = p.x > (b.min.x + b.max.x) * 0.5 ? b.max.x + H.x : b.min.x - H.x;
         this.velocity.x = 0;
       } else {
-        p.z = p.z > (b.min.z + b.max.z) * 0.5 ? b.max.z + HALF.z : b.min.z - HALF.z;
+        p.z = p.z > (b.min.z + b.max.z) * 0.5 ? b.max.z + H.z : b.min.z - H.z;
         this.velocity.z = 0;
       }
     }
     return grounded;
   }
 
-  /** Place the camera instantly behind the player (no follow lerp). */
   snapCamera(camera) {
     this._updateCamera(camera, true);
   }
@@ -355,7 +458,6 @@ export default class PlayerController {
     if (snap) {
       camera.position.copy(this._camPos);
     } else {
-      // Smooth follow.
       camera.position.lerp(this._camPos, 1 - Math.pow(0.0008, 1 / 60));
     }
     camera.lookAt(this._camTarget);
@@ -365,6 +467,11 @@ export default class PlayerController {
     return this.mesh.position;
   }
 }
+
+const ALLOWED = new Set([
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight',
+]);
 
 function approach(current, target, maxDelta) {
   if (current < target) return Math.min(current + maxDelta, target);

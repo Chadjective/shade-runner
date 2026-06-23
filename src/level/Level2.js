@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { makeFountain } from './props.js';
 
 /**
  * Level 2 — "The Interchange". A multi-path, multi-level course.
@@ -121,8 +122,20 @@ export default function buildLevel2() {
     new THREE.Vector3(4, 6, finishZ + 4)
   );
 
-  // -- pickups: sunscreen rewards the exposed high road, water the tunnel ---
+  // -- cooling fountain at the merge plaza ----------------------------------
+  const fountain = makeFountain(0, -70);
+  group.add(fountain.mesh);
+  colliders.push(fountain.collider);
+  const coolZones = [{ x: 0, z: -70, r: 3.2 }];
+
+  // -- zipline: bail off the high-road walkway straight to the merge --------
+  const ziplines = [
+    { from: [walkway, 3.5, -56], to: [-1.5, 2.2, -73] },
+  ];
+
+  // -- pickups: umbrella at the fork, sunscreen high, water low -------------
   const items = [
+    { type: 'umbrella', x: -4, y: 1.0, z: -11 }, // at the fork — take it up the high road
     { type: 'sunscreen', x: walkway, y: 3.9, z: -40 }, // on the elevated walkway
     { type: 'water', x: 7, y: 1.0, z: -38 }, // inside the shaded tunnel
   ];
@@ -134,6 +147,8 @@ export default function buildLevel2() {
     colliders,
     occluders,
     items,
+    coolZones,
+    ziplines,
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

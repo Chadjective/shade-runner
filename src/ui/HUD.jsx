@@ -15,16 +15,18 @@ function healthColor(pct) {
 }
 
 /**
- * The heads-up display: level name, health bar, sun/shade state, run timer,
- * the day-progress clock, an active-sunscreen indicator, a transient pickup
- * toast, and the screen-edge tint that warms in the sun and cools in shade.
+ * The heads-up display: level name, health bar, exposure state (sun / shade /
+ * sheltered / cooling / ziplining), run timer, day clock, active-sunscreen and
+ * umbrella indicators, a pickup toast, and the edge tint that warms in the sun.
  */
 export default function HUD({ stats }) {
-  const { health, inSun, exposure, time, sunProgress, sunscreen = 0, levelName, pickup, pickupId } = stats;
+  const {
+    health, inSun, exposure, time, sunProgress, sunscreen = 0, levelName, pickup, pickupId,
+    hasUmbrella, umbrellaOpen, sheltered, cooling, onZipline,
+  } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
   const protectedNow = sunscreen > 0;
 
-  // Briefly flash a pickup toast whenever pickupId changes.
   const [toast, setToast] = useState(null);
   useEffect(() => {
     if (!pickupId) return;
@@ -33,16 +35,28 @@ export default function HUD({ stats }) {
     return () => clearTimeout(t);
   }, [pickupId, pickup]);
 
+  let expClass = 'shade';
+  let expText = '🌿 In Shade — Cooling';
+  if (cooling) expText = '💧 Cooling Off';
+  else if (onZipline) expText = '🛼 Ziplining';
+  else if (sheltered) expText = '☂️ Sheltered';
+  else if (inSun) {
+    expClass = 'sun';
+    expText = protectedNow ? '🧴 Sun — Shielded' : '☀️ In Sun — Burning';
+  }
+
+  const burning = inSun && !sheltered && !cooling;
+
   return (
     <>
-      <div className="tint sun" style={{ opacity: inSun ? (protectedNow ? 0.12 : 0.35 + exposure * 0.5) : 0 }} />
-      <div className="tint shade" style={{ opacity: !inSun && health < MAX_HEALTH ? 0.18 : 0 }} />
+      <div className="tint sun" style={{ opacity: burning ? (protectedNow ? 0.12 : 0.35 + exposure * 0.5) : 0 }} />
+      <div className="tint shade" style={{ opacity: (cooling || (!inSun && health < MAX_HEALTH)) ? 0.18 : 0 }} />
 
       <div className="hud">
         <div className="health-wrap">
           {levelName && <div className="level-name">{levelName}</div>}
           <div className="health-label">
-            <span>{inSun ? '☀️' : '🌑'}</span>
+            <span>{inSun && !sheltered ? '☀️' : '🌑'}</span>
             <span>Vitality</span>
           </div>
           <div className="health-track">
@@ -57,13 +71,14 @@ export default function HUD({ stats }) {
               </div>
             </div>
           )}
+          {hasUmbrella && (
+            <div className="buff">
+              <span>☂️ Umbrella · {umbrellaOpen ? 'Open' : 'Closed'} (E)</span>
+            </div>
+          )}
         </div>
 
-        <div className={`exposure ${inSun ? 'sun' : 'shade'}`}>
-          {inSun
-            ? protectedNow ? '🧴 Sun — Shielded' : '☀️ In Sun — Burning'
-            : '🌿 In Shade — Cooling'}
-        </div>
+        <div className={`exposure ${expClass}`}>{expText}</div>
 
         <div className="timer">
           <div className="timer-label">Time</div>

@@ -6,12 +6,18 @@ import HealthSystem from './systems/HealthSystem.js';
 import PlayerController from './systems/PlayerController.js';
 import ItemSystem from './systems/ItemSystem.js';
 import SweatSystem from './systems/SweatSystem.js';
+import TrafficSystem from './systems/TrafficSystem.js';
+import ZiplineSystem from './systems/ZiplineSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
   AMBIENT_GROUND_COLOR,
   SKY_DAWN,
+  MAX_HEALTH,
+  COOL_RECOVERY_RATE,
 } from './utils/constants.js';
+
+const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!' };
 
 /**
  * Game owns the imperative Three.js world and the per-frame game loop. React
@@ -56,10 +62,15 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const level = levelDef.build();
     scene.add(level.group);
     const sun = new SunSystem(scene, level.sun);
-    const shade = new ShadeDetector(level.occluders);
+    const traffic = new TrafficSystem(scene, level.traffic || []);
+    // Vehicles block the player and cast moving shade.
+    level.colliders.push(...traffic.colliders);
+    const shade = new ShadeDetector([...level.occluders, ...traffic.occluders]);
     const health = new HealthSystem();
     const items = new ItemSystem(scene, level.items || []);
     const sweat = new SweatSystem(scene);
+    const zip = new ZiplineSystem(scene, level.ziplines || []);
+    const coolZones = level.coolZones || [];
     const player = new PlayerController(scene, renderer.domElement);
     player.reset(level.startPos, level.startYaw);
     player.enable();
@@ -137,6 +148,8 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     let finished = false;
     let pickupLabel = '';
     let pickupId = 0;
+    let lastCooling = false;
+    let lastRawInSun = false;
     const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
     const report = () => {
@@ -163,6 +176,12 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           levelName: levelDef.name,
           pickup: pickupLabel,
           pickupId,
+          hasUmbrella: player.hasUmbrella,
+          umbrellaOpen: player.umbrellaOpen,
+          sheltered: player.umbrellaOpen && lastRawInSun,
+          sliding: player.sliding,
+          onZipline: player.onZipline,
+          cooling: lastCooling,
         });
       }
     };
@@ -171,12 +190,35 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     // harness drive identical logic.
     const step = (dt) => {
       sun.update(dt, player.getPosition());
+      traffic.update(dt);
+      zip.update(dt, player); // may set player.onZipline before player.update
       player.update(dt, level.colliders, camera);
-      const inSun = shade.isInSun(player.getPosition(), sun.toSun);
+
+      const pp = player.getPosition();
+      const rawInSun = shade.isInSun(pp, sun.toSun);
+      lastRawInSun = rawInSun;
+      // An open umbrella is mobile shade.
+      const inSun = rawInSun && !player.umbrellaOpen;
       health.update(dt, inSun);
-      const picked = items.update(dt, player.getPosition(), health);
-      if (picked.length) {
-        pickupLabel = picked[picked.length - 1];
+
+      // Cooling zones (misters / fountains) recover health fast, even in sun.
+      let cooling = false;
+      for (let i = 0; i < coolZones.length; i++) {
+        const cz = coolZones[i];
+        const dx = pp.x - cz.x;
+        const dz = pp.z - cz.z;
+        if (dx * dx + dz * dz < cz.r * cz.r) { cooling = true; break; }
+      }
+      if (cooling && !health.dead) {
+        health.health = Math.min(MAX_HEALTH, health.health + COOL_RECOVERY_RATE * dt);
+      }
+      lastCooling = cooling;
+
+      const picked = items.update(dt, pp);
+      for (const type of picked) {
+        if (type === 'umbrella') player.giveUmbrella();
+        else health.applyPickup(type);
+        pickupLabel = ITEM_LABEL[type] || type;
         pickupId++;
       }
       sweat.update(dt, player, health);
@@ -226,12 +268,21 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
         teleport: (x, y, z) => player.mesh.position.set(x, y, z),
         setHealth: (v) => { health.health = v; health.dead = false; },
         jump: () => { player.keys.Space = true; },
+        giveUmbrella: () => player.giveUmbrella(),
+        toggleUmbrella: () => player._toggleUmbrella(),
+        slide: () => player._startSlide(),
         state: () => ({
           pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
           health: +health.health.toFixed(1),
           inSun: health.inSun,
           onGround: player.onGround,
           sunscreen: +health.sunscreen.toFixed(1),
+          umbrella: player.hasUmbrella,
+          umbrellaOpen: player.umbrellaOpen,
+          sliding: player.sliding,
+          onZipline: player.onZipline,
+          cooling: lastCooling,
+          vehiclesZ: traffic.vehicles.map((v) => +v.mesh.position.z.toFixed(1)),
           elapsed: +elapsed.toFixed(2),
           sunProgress: +sun.getProgress().toFixed(3),
           sunElevation: +sun.getElevationDeg().toFixed(1),
@@ -294,7 +345,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           <button className="btn" onClick={() => startRef.current && startRef.current()}>
             Resume
           </button>
-          <div className="hint">WASD move · Mouse look · Space jump · Esc pause</div>
+          <div className="hint">WASD move · Mouse look · Space jump · Shift slide · E umbrella · Esc pause</div>
         </div>
       )}
     </div>

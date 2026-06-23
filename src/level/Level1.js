@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { makeFountain } from './props.js';
 
 /**
  * Level 1 — an urban canyon that runs down the -Z axis:
@@ -212,7 +213,20 @@ export default function buildLevel1() {
   // -- pickups --------------------------------------------------------------
   const items = [
     { type: 'water', x: 3, y: 1.0, z: -68 }, // market: a reward slightly off the racing line
+    { type: 'umbrella', x: -3, y: 1.0, z: -100 }, // construction: grab cover before the gauntlet
     { type: 'sunscreen', x: 0, y: 1.0, z: -119 }, // right before the boulevard sun gauntlet
+  ];
+
+  // -- cooling fountain in the park -----------------------------------------
+  const fountain = makeFountain(5, -168);
+  group.add(fountain.mesh);
+  colliders.push(fountain.collider);
+  const coolZones = [{ x: 5, z: -168, r: 3.2 }];
+
+  // -- traffic in the boulevard: ride the moving shade ----------------------
+  const traffic = [
+    { from: [-4, 0, -118], to: [-4, 0, -160], speed: 7, size: [3, 3.4, 7], color: 0xe0584a },
+    { from: [4, 0, -122], to: [4, 0, -164], speed: 5.5, size: [3, 3.4, 7], color: 0x4a78e0 },
   ];
 
   return {
@@ -222,6 +236,8 @@ export default function buildLevel1() {
     colliders,
     occluders,
     items,
+    coolZones,
+    traffic,
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

@@ -4,12 +4,13 @@ import { ITEM_PICKUP_RADIUS } from '../utils/constants.js';
 const PALETTE = {
   water: { body: 0x33b5ff, glow: 0x1488d8 },
   sunscreen: { body: 0xffa23c, glow: 0xd85a14 },
+  umbrella: { body: 0xff5a3c, glow: 0x9c2a12 },
 };
 
 /**
- * ItemSystem: floating pickups (water = instant heal, sunscreen = timed sun
- * shield). It builds the meshes, spins/bobs them, and on proximity applies the
- * effect through the HealthSystem, returning a short label for HUD feedback.
+ * ItemSystem: floating pickups. It builds/spins/bobs the meshes and, on
+ * proximity, marks them taken and returns the picked TYPES for this frame —
+ * the Game routes each type to the right effect (heal, buff, or equip).
  */
 export default class ItemSystem {
   constructor(scene, defs = []) {
@@ -28,28 +29,29 @@ export default class ItemSystem {
     const c = PALETTE[type] || PALETTE.water;
     const group = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({ color: c.body, emissive: c.glow, emissiveIntensity: 0.9, roughness: 0.35 });
+    const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
 
     if (type === 'sunscreen') {
       const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.46, 14), bodyMat);
       group.add(tube);
-      const cap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.14, 0.14, 0.1, 14),
-        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-      );
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.1, 14), white);
       cap.position.y = 0.28;
       group.add(cap);
+    } else if (type === 'umbrella') {
+      const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.34, 16), bodyMat);
+      canopy.position.y = 0.2;
+      group.add(canopy);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 6), white);
+      pole.position.y = -0.1;
+      group.add(pole);
     } else {
       const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.5, 14), bodyMat);
       group.add(bottle);
-      const cap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.09, 0.09, 0.12, 12),
-        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-      );
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.12, 12), white);
       cap.position.y = 0.31;
       group.add(cap);
     }
 
-    // Floating halo ring so it reads as a pickup from a distance.
     const halo = new THREE.Mesh(
       new THREE.TorusGeometry(0.42, 0.04, 8, 24),
       new THREE.MeshStandardMaterial({ color: c.body, emissive: c.glow, emissiveIntensity: 1.4, roughness: 0.4 })
@@ -62,9 +64,9 @@ export default class ItemSystem {
   }
 
   /**
-   * @returns {string[]} labels for any items picked up this frame
+   * @returns {string[]} types picked up this frame (e.g. ['water'])
    */
-  update(dt, playerPos, health) {
+  update(dt, playerPos) {
     this.time += dt;
     const picked = [];
     for (const item of this.items) {
@@ -75,16 +77,14 @@ export default class ItemSystem {
       if (item.pos.distanceTo(playerPos) < ITEM_PICKUP_RADIUS) {
         item.taken = true;
         item.mesh.visible = false;
-        picked.push(health.applyPickup(item.type));
+        picked.push(item.type);
       }
     }
     return picked;
   }
 
   dispose() {
-    for (const item of this.items) {
-      this.scene.remove(item.mesh);
-    }
+    for (const item of this.items) this.scene.remove(item.mesh);
     this.items = [];
   }
 }

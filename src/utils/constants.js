@@ -15,6 +15,23 @@ export const SUNSCREEN_DURATION = 9; // seconds of sun protection
 export const SUNSCREEN_DAMAGE_MULT = 0.3; // sun damage multiplier while protected
 export const ITEM_PICKUP_RADIUS = 1.5; // how close you must get to grab an item
 
+// --- Umbrella (carryable mobile shade) -------------------------------------
+export const UMBRELLA_SPEED_MULT = 0.62; // you move slower while it's open
+// (an open umbrella counts as full shade — the slowdown is the trade-off)
+
+// --- Slide -----------------------------------------------------------------
+export const SLIDE_DURATION = 0.55; // seconds a slide lasts
+export const SLIDE_SPEED_MULT = 1.55; // speed boost during the slide
+export const SLIDE_COOLDOWN = 0.9; // seconds before you can slide again
+export const SLIDE_HEIGHT_MULT = 0.5; // collision height while sliding (duck under cover)
+
+// --- Zipline ---------------------------------------------------------------
+export const ZIPLINE_SPEED = 15; // units/sec travelled along a cable
+export const ZIPLINE_GRAB_RADIUS = 2.4; // how close to a cable end to auto-grab
+
+// --- Cooling zones (misters / fountains) -----------------------------------
+export const COOL_RECOVERY_RATE = 20; // HP/sec recovered inside a cooling zone
+
 // --- Movement --------------------------------------------------------------
 export const PLAYER_SPEED = 8; // ground run speed, units/sec
 export const PLAYER_ACCEL = 60; // how quickly we reach top speed (snappy)
