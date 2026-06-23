@@ -80,6 +80,7 @@ export default class PlayerController {
     this.windStrength = 0;
     this.heatDrift = 0;
     this.traction = 1; // <1 on wet ground -> skiddy (slower to change velocity)
+    this.zoneSpeedMult = 1; // <1 in mud/sand zones
 
     this.keys = Object.create(null);
     this._tmpForward = new THREE.Vector3();
@@ -335,6 +336,7 @@ export default class PlayerController {
     this.windStrength = 0;
     this.heatDrift = 0;
     this.traction = 1;
+    this.zoneSpeedMult = 1;
     this.windVec.set(0, 0, 0);
     if (this.umbrella) this.umbrella.visible = false;
     if (this.hat) { this.hat.visible = false; this.hat.rotation.set(0, 0, 0); }
@@ -497,6 +499,7 @@ export default class PlayerController {
     else if (this.isSprinting) spd *= SPRINT_SPEED_MULT;
     else if (this.isWalking) spd *= WALK_SPEED_MULT;
     if (this.umbrellaOpen) spd *= UMBRELLA_SPEED_MULT;
+    spd *= this.zoneSpeedMult; // mud / sand drag
 
     const accel = PLAYER_ACCEL * this.traction * dt;
     this.velocity.x = approach(this.velocity.x, wish.x * spd, accel);

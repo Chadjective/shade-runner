@@ -225,6 +225,19 @@ export default function buildLevel1() {
   colliders.push(fountain.collider);
   const coolZones = [{ x: 5, z: -168, r: 3.2 }];
 
+  // -- tinted-glass skybridge over the open boulevard (only HALF-blocks sun) -
+  const sky = addBox(0, 5.5, -132, 12, 0.3, 7, 0x8fc7ff, { collide: false, roughness: 0.1 });
+  sky.castShadow = false; // glass shouldn't drop a hard shadow
+  sky.userData.shadeFactor = 0.5;
+
+  // -- surface zones --------------------------------------------------------
+  const zones = [
+    { type: 'puddle', x: 2, z: -46, r: 2.2 }, // plaza — pairs with the rain shower
+    { type: 'mist', x: -3, z: -72, r: 2.4 }, // market — cool but slick
+    { type: 'mud', x: 3, z: -100, r: 2.6 }, // construction — slow going
+    { type: 'hazard', x: 0, z: -138, r: 2.6, sunScaled: true }, // boulevard — reflective hot-spot (between the traffic lanes)
+  ];
+
   // -- traffic in the boulevard: ride the moving shade ----------------------
   const traffic = [
     { from: [-4, 0, -118], to: [-4, 0, -160], speed: 7, size: [3, 3.4, 7], color: 0xe0584a },
@@ -239,6 +252,7 @@ export default function buildLevel1() {
     occluders,
     items,
     coolZones,
+    zones,
     traffic,
     weather: { events: ['rain'] }, // a passing shower partway through
     startPos: new THREE.Vector3(0, 0.9, 0),

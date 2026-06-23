@@ -146,6 +146,13 @@ export default function buildLevel3() {
   group.add(vent.mesh);
   const updrafts = [{ x: -8, z: -230, r: 1.5, top: 7 }];
 
+  // -- surface zones: deep sand in the gauntlet, a hot grate in construction
+  const zones = [
+    { type: 'mud', x: 0, z: -236, r: 3 }, // deep sand — sprint through it
+    { type: 'hazard', x: -4, z: -240, r: 2.4, sunScaled: true }, // reflective hot-spot
+    { type: 'hazard', x: 0, z: -272, r: 2.4 }, // construction: hot grate
+  ];
+
   // -- construction climb (off the racing line; optional shade decks) -------
   addBox(-3, 2.4, -268, 7, 0.3, 6, 0x8a8f9c, { roughness: 0.6 });
   addBox(3, 4.4, -278, 7, 0.3, 6, 0x8a8f9c, { roughness: 0.6 });
@@ -222,6 +229,7 @@ export default function buildLevel3() {
     finishCenter: new THREE.Vector3(0, 0, finishZ),
     courseLength: Math.abs(finishZ),
     updrafts,
+    zones,
     // Longer course -> a longer day so the danger ramp matches the run length.
     sun: { cycle: 95, startAngle: 16 },
     // Exposed crosstown run — gustier than the others.

@@ -11,6 +11,10 @@ import { PLAYER_HEIGHT, SUN_DISTANCE } from '../utils/constants.js';
  *
  * This is independent of the shadow map — it reads true geometry, so shade
  * health logic stays accurate even where shadow-map resolution is fuzzy.
+ *
+ * Occluders may set `mesh.userData.shadeFactor` (0..1, default 1) for PARTIAL
+ * cover — e.g. a tinted-glass skybridge at 0.5 only half-blocks the sun. The
+ * strongest blocker along the ray wins.
  */
 export default class ShadeDetector {
   constructor(occluders) {
@@ -21,11 +25,12 @@ export default class ShadeDetector {
   }
 
   /**
+   * How much direct sun reaches the player, 0 (full shade) .. 1 (full sun).
    * @param {THREE.Vector3} playerPos  player center position
    * @param {THREE.Vector3} toSun      unit vector toward the sun
-   * @returns {boolean} true if the player is exposed to direct sun
+   * @returns {number} exposure 0..1
    */
-  isInSun(playerPos, toSun) {
+  sunExposure(playerPos, toSun) {
     // Fire from a little below the head so a low awning still counts as cover
     // but the ray clearly clears the ground the player stands on.
     this._origin.copy(playerPos);
@@ -33,6 +38,17 @@ export default class ShadeDetector {
 
     this.ray.set(this._origin, toSun);
     const hits = this.ray.intersectObjects(this.occluders, false);
-    return hits.length === 0;
+    let block = 0;
+    for (let i = 0; i < hits.length; i++) {
+      const f = hits[i].object.userData.shadeFactor ?? 1;
+      if (f > block) block = f;
+      if (block >= 1) break; // fully blocked — can't get darker
+    }
+    return 1 - block;
+  }
+
+  /** @returns {boolean} true if any meaningful direct sun reaches the player */
+  isInSun(playerPos, toSun) {
+    return this.sunExposure(playerPos, toSun) > 0.05;
   }
 }

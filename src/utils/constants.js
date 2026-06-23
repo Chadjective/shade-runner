@@ -119,6 +119,13 @@ export const DUST_WIND_PUSH = 0.85; // extra wind strength during a dust storm
 // --- Updraft vents ---------------------------------------------------------
 export const UPDRAFT_POWER = 9; // upward velocity while standing in the column
 
+// --- Surface zones (Phase A) -----------------------------------------------
+export const HOT_ZONE_DPS = 14; // contact damage/sec on hot grates/coals/asphalt
+export const MUD_SPEED_MULT = 0.5; // movement speed in sand/mud
+export const MIST_TRACTION = 0.45; // grip on slick mist patches (skid)
+export const PUDDLE_HYDRATE_RATE = 16; // hydration/sec from standing in a puddle
+export const SKYBRIDGE_SHADE = 0.5; // tinted glass blocks half the sun
+
 // --- World palette (warm sun / cool shade) ---------------------------------
 export const SUN_LIGHT_COLOR = 0xfff1d6; // warm sunlight
 export const AMBIENT_SKY_COLOR = 0x9fc6ff; // cool sky fill

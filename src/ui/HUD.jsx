@@ -26,7 +26,7 @@ export default function HUD({ stats }) {
     hasUmbrella, umbrellaOpen, sheltered, cooling, onZipline,
     hasHat, hatStability = 1, hasSunglasses, sunglassesOn, sprinting, stamina = 1,
     hydration = MAX_HYDRATION, dehydrated, heat = 0, windStrength = 0, coolMult = 1, coolStreak = 0,
-    raining, flaring, dusting, flareWarn, weatherIntensity = 0,
+    raining, flaring, dusting, flareWarn, weatherIntensity = 0, onHazard,
   } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
   const hydraPct = Math.max(0, (hydration / MAX_HYDRATION) * 100);
@@ -42,7 +42,8 @@ export default function HUD({ stats }) {
 
   let expClass = 'shade';
   let expText = '🌿 In Shade — Cooling';
-  if (cooling) expText = '💧 Cooling Off';
+  if (onHazard) { expClass = 'sun'; expText = '🔥 Scorching Ground!'; }
+  else if (cooling) expText = '💧 Cooling Off';
   else if (onZipline) expText = '🛼 Ziplining';
   else if (sheltered) expText = '☂️ Sheltered';
   else if (inSun) {
@@ -50,7 +51,7 @@ export default function HUD({ stats }) {
     expText = protectedNow ? '🧴 Sun — Shielded' : '☀️ In Sun — Burning';
   }
 
-  const burning = inSun && !sheltered && !cooling;
+  const burning = (inSun && !sheltered && !cooling) || onHazard;
   const sunTint = burning ? (protectedNow || sunglassesOn ? 0.12 : 0.35 + exposure * 0.5) : 0;
   const haze = heat * (sunglassesOn ? 0.35 : 1); // glasses cut the shimmer
 
