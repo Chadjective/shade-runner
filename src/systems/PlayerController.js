@@ -27,6 +27,12 @@ import {
   WALK_SPEED_MULT,
   SPRINT_STAMINA_DRAIN,
   SPRINT_STAMINA_RECOVER,
+  WIND_PUSH,
+  UMBRELLA_WIND_CATCH,
+  UMBRELLA_FLIP_STRENGTH,
+  HAT_WIND_THRESHOLD,
+  HAT_WIND_DRAIN,
+  HEAT_DRIFT,
 } from '../utils/constants.js';
 
 const FULL_HALF_Y = PLAYER_HEIGHT / 2;
@@ -68,6 +74,11 @@ export default class PlayerController {
     this.hasSunglasses = false;
     this.sunglassesOn = false;
     this._fallingHat = null;
+
+    // External forces, set by Game each step.
+    this.windVec = new THREE.Vector3();
+    this.windStrength = 0;
+    this.heatDrift = 0;
 
     this.keys = Object.create(null);
     this._tmpForward = new THREE.Vector3();
@@ -320,6 +331,9 @@ export default class PlayerController {
     this.hatStability = 1;
     this.hasSunglasses = false;
     this.sunglassesOn = false;
+    this.windStrength = 0;
+    this.heatDrift = 0;
+    this.windVec.set(0, 0, 0);
     if (this.umbrella) this.umbrella.visible = false;
     if (this.hat) { this.hat.visible = false; this.hat.rotation.set(0, 0, 0); }
     if (this.sunglasses) this.sunglasses.visible = false;
@@ -485,6 +499,30 @@ export default class PlayerController {
     const accel = PLAYER_ACCEL * dt;
     this.velocity.x = approach(this.velocity.x, wish.x * spd, accel);
     this.velocity.z = approach(this.velocity.z, wish.z * spd, accel);
+
+    // Wind shoves you sideways; an open umbrella catches much more of it, a
+    // strong gust works the hat loose and even flips the umbrella shut.
+    if (this.windStrength > 0) {
+      let wf = WIND_PUSH;
+      if (this.umbrellaOpen) wf *= UMBRELLA_WIND_CATCH;
+      this.velocity.x += this.windVec.x * wf * dt;
+      this.velocity.z += this.windVec.z * wf * dt;
+      if (this.hasHat && this.windStrength > HAT_WIND_THRESHOLD) {
+        this.hatStability -= (this.windStrength - HAT_WIND_THRESHOLD) * HAT_WIND_DRAIN * dt;
+        if (this.hatStability <= 0) this._dropHat();
+      }
+      if (this.umbrellaOpen && this.windStrength > UMBRELLA_FLIP_STRENGTH) {
+        this.umbrellaOpen = false;
+        this._applyUmbrellaPose();
+      }
+    }
+
+    // Heatstroke: a wandering sideways drift while baking in the sun.
+    if (this.heatDrift > 0) {
+      const d = Math.sin(this._animTime * 3.3) * HEAT_DRIFT * this.heatDrift;
+      this.velocity.x += Math.cos(this.yaw) * d * dt;
+      this.velocity.z += -Math.sin(this.yaw) * d * dt;
+    }
 
     this.timeSinceGround = this.onGround ? 0 : this.timeSinceGround + dt;
     if (this.keys.Space && this.timeSinceGround <= COYOTE_TIME) {

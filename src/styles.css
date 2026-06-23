@@ -194,6 +194,66 @@ canvas {
   z-index: 8;
 }
 
+/* dehydration: the view goes soft and swimmy */
+.tint.blur {
+  z-index: 7;
+  backdrop-filter: blur(2.5px);
+  background: rgba(255, 180, 120, 0.06);
+}
+
+/* heatstroke: a warm shimmer that wobbles the view */
+.tint.haze {
+  z-index: 7;
+  background: linear-gradient(0deg, rgba(255, 170, 110, 0.12), rgba(255, 130, 80, 0.03));
+  backdrop-filter: blur(1.4px);
+  animation: heatHaze 1.3s ease-in-out infinite alternate;
+}
+
+@keyframes heatHaze {
+  from { transform: translateY(0) skewX(-0.5deg); }
+  to { transform: translateY(-5px) skewX(0.5deg); }
+}
+
+/* cool-streak multiplier chip */
+.cool-streak {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: rgba(40, 120, 255, 0.2);
+  border: 1px solid rgba(120, 200, 255, 0.6);
+  color: #d6ecff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.cool-streak span {
+  opacity: 0.7;
+  font-weight: 600;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.wind-gust {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #d8e6ff;
+  opacity: 0.9;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  animation: gustFlash 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes gustFlash {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
 /* ------------------------------------------------------------- overlays --- */
 .overlay {
   position: fixed;
@@ -417,6 +477,10 @@ canvas {
 
 .buff-fill.hat {
   background: linear-gradient(90deg, #ffe79a, #e8c24a);
+}
+
+.buff-fill.hydra {
+  background: linear-gradient(90deg, #5af0c0, #3aa0ff);
 }
 
 .pickup-toast {

@@ -5,14 +5,20 @@ import {
   SUNSCREEN_DURATION,
   SUNSCREEN_DAMAGE_MULT,
   WATER_HEAL,
+  MAX_HYDRATION,
+  HYDRATION_DRAIN,
+  HYDRATION_LOW,
+  DEHYDRATION_DMG_MULT,
+  WATER_HYDRATE,
 } from '../utils/constants.js';
 
 /**
  * HealthSystem: drains in the sun, recovers in the shade.
  *
- * Pickups modify it: water heals instantly; sunscreen grants a timed buff that
- * scales down sun damage. Tracks a little extra state the HUD uses for feedback
- * (exposure intensity, and the remaining sunscreen timer).
+ * Layered modifiers on sun damage: sunscreen (timed buff), gear (hat/glasses,
+ * passed in), and hydration — sweating in the sun drains your water, and once
+ * you're dehydrated the sun bites harder. Water refills both health and
+ * hydration; cooling zones top hydration back up.
  */
 export default class HealthSystem {
   constructor() {
@@ -23,10 +29,9 @@ export default class HealthSystem {
     this.health = MAX_HEALTH;
     this.inSun = false;
     this.dead = false;
-    // 0..1 ramp of "exposure intensity" — climbs while in sun, falls in shade.
-    // The HUD uses it to fade the red edge-tint in and out smoothly.
     this.exposure = 0;
-    this.sunscreen = 0; // seconds of protection remaining
+    this.sunscreen = 0;
+    this.hydration = MAX_HYDRATION;
   }
 
   /**
@@ -39,7 +44,12 @@ export default class HealthSystem {
     if (this.sunscreen > 0) this.sunscreen = Math.max(0, this.sunscreen - dt);
 
     if (inSun) {
-      const mult = (this.sunscreen > 0 ? SUNSCREEN_DAMAGE_MULT : 1) * gearMult;
+      this.hydration = Math.max(0, this.hydration - HYDRATION_DRAIN * dt);
+      const dehydrated = this.hydration < HYDRATION_LOW;
+      const mult =
+        (this.sunscreen > 0 ? SUNSCREEN_DAMAGE_MULT : 1) *
+        gearMult *
+        (dehydrated ? DEHYDRATION_DMG_MULT : 1);
       this.health -= SUN_DAMAGE_RATE * mult * dt;
       this.exposure = Math.min(1, this.exposure + dt * 2.2);
     } else {
@@ -59,6 +69,7 @@ export default class HealthSystem {
   applyPickup(type) {
     if (type === 'water') {
       this.health = Math.min(MAX_HEALTH, this.health + WATER_HEAL);
+      this.hydration = Math.min(MAX_HYDRATION, this.hydration + WATER_HYDRATE);
       return `+${WATER_HEAL} Water`;
     }
     if (type === 'sunscreen') {
@@ -66,6 +77,15 @@ export default class HealthSystem {
       return 'Sunscreen!';
     }
     return '';
+  }
+
+  /** Top up hydration (e.g. standing in a misting fountain). */
+  hydrate(amount) {
+    this.hydration = Math.min(MAX_HYDRATION, this.hydration + amount);
+  }
+
+  get dehydrated() {
+    return this.hydration < HYDRATION_LOW;
   }
 
   get protected() {

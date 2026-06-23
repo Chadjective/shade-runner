@@ -218,5 +218,7 @@ export default function buildLevel3() {
     courseLength: Math.abs(finishZ),
     // Longer course -> a longer day so the danger ramp matches the run length.
     sun: { cycle: 95, startAngle: 16 },
+    // Exposed crosstown run — gustier than the others.
+    wind: { gustMax: 1.2, period: 7.5 },
   };
 }

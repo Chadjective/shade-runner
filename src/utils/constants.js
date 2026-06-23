@@ -79,6 +79,32 @@ export const SUN_AZIMUTH_START = -58; // degrees, sun rises in the "east"
 export const SUN_AZIMUTH_END = 58; // degrees, sets in the "west"
 export const SUN_DISTANCE = 60; // how far the light sits from its target
 
+// --- Wind (gusts that shove you and grab your gear) ------------------------
+export const WIND_DIR = [1, 0, 0.25]; // blows mostly across +X
+export const WIND_BASE = 0.12; // constant breeze (strength 0..1)
+export const WIND_GUST_MAX = 1.0; // peak gust strength
+export const WIND_GUST_PERIOD = 9; // seconds between gust peaks
+export const WIND_PUSH = 6; // sideways accel at full gust
+export const UMBRELLA_WIND_CATCH = 2.4; // open umbrella catches the wind (more push)
+export const UMBRELLA_FLIP_STRENGTH = 0.82; // a gust this strong flips it shut
+export const HAT_WIND_THRESHOLD = 0.5; // gusts above this work the hat loose
+export const HAT_WIND_DRAIN = 1.2; // hat stability/sec lost per unit of gust over threshold
+
+// --- Hydration (sweat costs water; thirst makes the sun worse) --------------
+export const MAX_HYDRATION = 100;
+export const HYDRATION_DRAIN = 6; // per sec while in the sun
+export const HYDRATION_LOW = 30; // below this you're dehydrated
+export const DEHYDRATION_DMG_MULT = 1.6; // sun damage multiplier when dehydrated
+export const WATER_HYDRATE = 50; // hydration restored by a water bottle
+export const COOL_HYDRATE_RATE = 14; // hydration/sec regained in a cooling zone
+
+// --- Heatstroke (vision shimmer + control drift when baking) ---------------
+export const HEAT_DRIFT = 1.4; // sideways drift accel at full heat, in the sun
+
+// --- Cool-streak scoring ---------------------------------------------------
+export const STREAK_PER_MULT = 5; // seconds of staying cool per +1x
+export const STREAK_MAX_MULT = 8;
+
 // --- World palette (warm sun / cool shade) ---------------------------------
 export const SUN_LIGHT_COLOR = 0xfff1d6; // warm sunlight
 export const AMBIENT_SKY_COLOR = 0x9fc6ff; // cool sky fill

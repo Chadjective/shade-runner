@@ -8,6 +8,7 @@ import ItemSystem from './systems/ItemSystem.js';
 import SweatSystem from './systems/SweatSystem.js';
 import TrafficSystem from './systems/TrafficSystem.js';
 import ZiplineSystem from './systems/ZiplineSystem.js';
+import WindSystem from './systems/WindSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
@@ -15,8 +16,11 @@ import {
   SKY_DAWN,
   MAX_HEALTH,
   COOL_RECOVERY_RATE,
+  COOL_HYDRATE_RATE,
   SUNGLASSES_DAMAGE_MULT,
   HAT_DAMAGE_MULT,
+  STREAK_PER_MULT,
+  STREAK_MAX_MULT,
 } from './utils/constants.js';
 
 const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!', hat: 'Hat!', sunglasses: 'Sunglasses!' };
@@ -72,6 +76,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const items = new ItemSystem(scene, level.items || []);
     const sweat = new SweatSystem(scene);
     const zip = new ZiplineSystem(scene, level.ziplines || []);
+    const wind = new WindSystem(level.wind);
     const coolZones = level.coolZones || [];
     const player = new PlayerController(scene, renderer.domElement);
     player.reset(level.startPos, level.startYaw);
@@ -152,6 +157,10 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     let pickupId = 0;
     let lastCooling = false;
     let lastRawInSun = false;
+    let coolStreak = 0;
+    let bestStreak = 0;
+    let score = 0;
+    let coolMult = 1;
     const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
     const report = () => {
@@ -191,6 +200,12 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           sprinting: player.isSprinting,
           walking: player.isWalking,
           stamina: player.stamina,
+          hydration: health.hydration,
+          dehydrated: health.dehydrated,
+          heat: health.inSun ? health.exposure : 0,
+          windStrength: wind.strength,
+          coolMult,
+          coolStreak,
         });
       }
     };
@@ -201,6 +216,10 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       sun.update(dt, player.getPosition());
       traffic.update(dt);
       zip.update(dt, player); // may set player.onZipline before player.update
+      wind.update(dt);
+      player.windVec.copy(wind.vec);
+      player.windStrength = wind.strength;
+      player.heatDrift = health.inSun ? health.exposure : 0; // heatstroke wobble while baking
       player.update(dt, level.colliders, camera);
 
       const pp = player.getPosition();
@@ -224,6 +243,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       }
       if (cooling && !health.dead) {
         health.health = Math.min(MAX_HEALTH, health.health + COOL_RECOVERY_RATE * dt);
+        health.hydrate(COOL_HYDRATE_RATE * dt);
       }
       lastCooling = cooling;
 
@@ -237,16 +257,24 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
         pickupId++;
       }
       sweat.update(dt, player, health);
+
+      // Cool-streak scoring: stay out of the sun to build a multiplier; burning resets it.
+      if (health.inSun) coolStreak = 0;
+      else coolStreak += dt;
+      if (coolStreak > bestStreak) bestStreak = coolStreak;
+      coolMult = Math.min(STREAK_MAX_MULT, 1 + Math.floor(coolStreak / STREAK_PER_MULT));
+      score += coolMult * dt;
+
       elapsed += dt;
 
       if (level.finishBox.containsPoint(player.getPosition())) {
         finished = true;
         document.exitPointerLock();
-        onWin({ time: elapsed, health: health.health });
+        onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak) });
       } else if (health.dead) {
         finished = true;
         document.exitPointerLock();
-        onDeath({ time: elapsed });
+        onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak) });
       }
       report();
     };
@@ -307,6 +335,12 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           sprinting: player.isSprinting,
           walking: player.isWalking,
           stamina: +player.stamina.toFixed(2),
+          hydration: +health.hydration.toFixed(1),
+          dehydrated: health.dehydrated,
+          windStrength: +wind.strength.toFixed(2),
+          heatDrift: +player.heatDrift.toFixed(2),
+          coolMult,
+          bestStreak: +bestStreak.toFixed(1),
           vehiclesZ: traffic.vehicles.map((v) => +v.mesh.position.z.toFixed(1)),
           elapsed: +elapsed.toFixed(2),
           sunProgress: +sun.getProgress().toFixed(3),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MAX_HEALTH, SUNSCREEN_DURATION } from '../utils/constants.js';
+import { MAX_HEALTH, MAX_HYDRATION, SUNSCREEN_DURATION } from '../utils/constants.js';
 
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
@@ -15,18 +15,20 @@ function healthColor(pct) {
 }
 
 /**
- * Heads-up display: level, vitality + stamina, exposure state, run timer, day
- * clock, active gear (sunscreen / umbrella / hat / sunglasses), a pickup toast,
- * and the screen tints — warm sun glare, cool shade, and a dim when shades are
- * on (they cut the sun but it's harder to see).
+ * Heads-up display: level, vitality + stamina + hydration, exposure state, a
+ * cool-streak multiplier, the run timer + day clock, active gear, a pickup
+ * toast, a gust indicator, and the screen tints — warm sun glare, cool shade,
+ * sunglasses dim, dehydration blur, and a heat-haze shimmer.
  */
 export default function HUD({ stats }) {
   const {
     health, inSun, exposure, time, sunProgress, sunscreen = 0, levelName, pickup, pickupId,
     hasUmbrella, umbrellaOpen, sheltered, cooling, onZipline,
     hasHat, hatStability = 1, hasSunglasses, sunglassesOn, sprinting, stamina = 1,
+    hydration = MAX_HYDRATION, dehydrated, heat = 0, windStrength = 0, coolMult = 1, coolStreak = 0,
   } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
+  const hydraPct = Math.max(0, (hydration / MAX_HYDRATION) * 100);
   const protectedNow = sunscreen > 0;
 
   const [toast, setToast] = useState(null);
@@ -48,13 +50,15 @@ export default function HUD({ stats }) {
   }
 
   const burning = inSun && !sheltered && !cooling;
-  // Glasses cut the glare, so soften the warm tint while they're on.
   const sunTint = burning ? (protectedNow || sunglassesOn ? 0.12 : 0.35 + exposure * 0.5) : 0;
+  const haze = heat * (sunglassesOn ? 0.35 : 1); // glasses cut the shimmer
 
   return (
     <>
       <div className="tint sun" style={{ opacity: sunTint }} />
       <div className="tint shade" style={{ opacity: (cooling || (!inSun && health < MAX_HEALTH)) ? 0.18 : 0 }} />
+      <div className="tint haze" style={{ opacity: Math.min(0.9, haze) }} />
+      <div className="tint blur" style={{ opacity: dehydrated ? 1 : 0 }} />
       <div className="tint glasses" style={{ opacity: sunglassesOn ? 1 : 0 }} />
 
       <div className="hud">
@@ -73,6 +77,13 @@ export default function HUD({ stats }) {
             <span>{sprinting ? '⚡ Sprint' : 'Stamina'}</span>
             <div className="buff-track">
               <div className="buff-fill stam" style={{ width: `${stamina * 100}%`, opacity: stamina < 0.15 ? 0.5 : 1 }} />
+            </div>
+          </div>
+
+          <div className="buff">
+            <span style={{ color: dehydrated ? '#ff8a5a' : undefined }}>{dehydrated ? '🥵 Thirsty' : '💧 Hydration'}</span>
+            <div className="buff-track">
+              <div className="buff-fill hydra" style={{ width: `${hydraPct}%` }} />
             </div>
           </div>
 
@@ -97,10 +108,14 @@ export default function HUD({ stats }) {
         </div>
 
         <div className={`exposure ${expClass}`}>{expText}</div>
+        {coolMult > 1 && (
+          <div className="cool-streak">❄ COOL ×{coolMult} <span>{Math.floor(coolStreak)}s</span></div>
+        )}
 
         <div className="timer">
           <div className="timer-label">Time</div>
           <div className="timer-value">{formatTime(time)}</div>
+          {windStrength > 0.4 && <div className="wind-gust">🌬️ Gust</div>}
         </div>
 
         <div className="sun-clock">
