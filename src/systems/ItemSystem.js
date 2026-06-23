@@ -5,6 +5,8 @@ const PALETTE = {
   water: { body: 0x33b5ff, glow: 0x1488d8 },
   sunscreen: { body: 0xffa23c, glow: 0xd85a14 },
   umbrella: { body: 0xff5a3c, glow: 0x9c2a12 },
+  hat: { body: 0xe8d27a, glow: 0x8a6a18 },
+  sunglasses: { body: 0x2a2f3a, glow: 0x101218 },
 };
 
 /**
@@ -44,6 +46,21 @@ export default class ItemSystem {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 6), white);
       pole.position.y = -0.1;
       group.add(pole);
+    } else if (type === 'hat') {
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 18), bodyMat);
+      group.add(brim);
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.28, 16), bodyMat);
+      crown.position.y = 0.16;
+      group.add(crown);
+    } else if (type === 'sunglasses') {
+      const lensMat = new THREE.MeshStandardMaterial({ color: 0x101218, emissive: 0x223044, emissiveIntensity: 0.6, roughness: 0.15, metalness: 0.3 });
+      for (const dx of [-0.2, 0.2]) {
+        const lens = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.2, 0.06), lensMat);
+        lens.position.set(dx, 0, 0);
+        group.add(lens);
+      }
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.05), bodyMat);
+      group.add(bridge);
     } else {
       const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.5, 14), bodyMat);
       group.add(bottle);

@@ -135,9 +135,11 @@ export default function buildLevel2() {
 
   // -- pickups: umbrella at the fork, sunscreen high, water low -------------
   const items = [
+    { type: 'hat', x: 0, y: 1.0, z: -8 }, // start
     { type: 'umbrella', x: -4, y: 1.0, z: -11 }, // at the fork — take it up the high road
     { type: 'sunscreen', x: walkway, y: 3.9, z: -40 }, // on the elevated walkway
     { type: 'water', x: 7, y: 1.0, z: -38 }, // inside the shaded tunnel
+    { type: 'sunglasses', x: 7, y: 1.0, z: -54 }, // tunnel exit
   ];
 
   return {

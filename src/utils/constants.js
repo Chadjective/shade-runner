@@ -18,6 +18,23 @@ export const ITEM_PICKUP_RADIUS = 1.5; // how close you must get to grab an item
 // --- Umbrella (carryable mobile shade) -------------------------------------
 export const UMBRELLA_SPEED_MULT = 0.62; // you move slower while it's open
 // (an open umbrella counts as full shade — the slowdown is the trade-off)
+export const UMBRELLA_GLIDE_GRAVITY_MULT = 0.32; // open in mid-air = slow descent
+export const UMBRELLA_GLIDE_MAX_FALL = 3.2; // terminal fall speed while gliding
+
+// --- Sunglasses (gear: cut the sun, but dim your view) ---------------------
+export const SUNGLASSES_DAMAGE_MULT = 0.55; // sun damage multiplier while worn
+
+// --- Hat (gear: shade, but it shakes loose if you run too fast) ------------
+export const HAT_DAMAGE_MULT = 0.7; // sun damage multiplier while worn
+export const HAT_SHAKE_SPEED = 9; // moving faster than this works it loose
+export const HAT_DRAIN_RATE = 0.7; // stability/sec lost while moving too fast
+export const HAT_RECOVER_RATE = 0.5; // stability/sec regained when slow enough
+
+// --- Sprint / walk (burst speed vs. careful pace) --------------------------
+export const SPRINT_SPEED_MULT = 1.45;
+export const WALK_SPEED_MULT = 0.45;
+export const SPRINT_STAMINA_DRAIN = 0.5; // per sec (≈2s of sprint from full)
+export const SPRINT_STAMINA_RECOVER = 0.35; // per sec
 
 // --- Slide -----------------------------------------------------------------
 export const SLIDE_DURATION = 0.55; // seconds a slide lasts

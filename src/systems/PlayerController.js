@@ -14,10 +14,19 @@ import {
   CAM_PITCH_MIN,
   CAM_PITCH_MAX,
   UMBRELLA_SPEED_MULT,
+  UMBRELLA_GLIDE_GRAVITY_MULT,
+  UMBRELLA_GLIDE_MAX_FALL,
   SLIDE_DURATION,
   SLIDE_SPEED_MULT,
   SLIDE_COOLDOWN,
   SLIDE_HEIGHT_MULT,
+  HAT_SHAKE_SPEED,
+  HAT_DRAIN_RATE,
+  HAT_RECOVER_RATE,
+  SPRINT_SPEED_MULT,
+  WALK_SPEED_MULT,
+  SPRINT_STAMINA_DRAIN,
+  SPRINT_STAMINA_RECOVER,
 } from '../utils/constants.js';
 
 const FULL_HALF_Y = PLAYER_HEIGHT / 2;
@@ -25,17 +34,14 @@ const FULL_HALF_Y = PLAYER_HEIGHT / 2;
 /**
  * PlayerController: an animated runner in third person.
  *
- * - WASD moves relative to the camera; mouse (pointer lock) orbits it.
- * - Space jumps (coyote-time grace + gravity); collision is swept AABB with
- *   min-penetration resolution so you can also land on platforms.
- * - Shift slides: a brief speed burst that lowers your collision box so you can
- *   duck under low cover.
- * - E toggles a picked-up umbrella open/closed (open = mobile shade but slower).
- * - While riding a zipline the ZiplineSystem drives the position; we just pose
- *   and follow with the camera.
+ * Movement: WASD relative to camera; mouse orbits. Space jumps. Hold Shift to
+ * SPRINT (burst speed, drains stamina, shakes a hat loose). Hold C to crouch —
+ * walk slowly, or tap it at speed to SLIDE under cover. Gear toggles: E umbrella
+ * (open = mobile shade, slower, and a slow glide in mid-air), G sunglasses.
  */
 export default class PlayerController {
   constructor(scene, domElement) {
+    this.scene = scene;
     this.domElement = domElement;
     this.velocity = new THREE.Vector3();
     this.yaw = 0;
@@ -44,16 +50,24 @@ export default class PlayerController {
     this.timeSinceGround = 0;
     this.lookEnabled = false;
 
-    // Collision half-extents (mutated during a slide).
     this.half = new THREE.Vector3(PLAYER_RADIUS, FULL_HALF_Y, PLAYER_RADIUS);
 
-    // Ability state.
+    // Ability / gear state.
     this.hasUmbrella = false;
     this.umbrellaOpen = false;
     this.sliding = false;
     this.slideTime = 0;
     this.slideCooldown = 0;
     this.onZipline = false;
+    this.crouching = false;
+    this.isSprinting = false;
+    this.isWalking = false;
+    this.stamina = 1;
+    this.hasHat = false;
+    this.hatStability = 1;
+    this.hasSunglasses = false;
+    this.sunglassesOn = false;
+    this._fallingHat = null;
 
     this.keys = Object.create(null);
     this._tmpForward = new THREE.Vector3();
@@ -69,6 +83,19 @@ export default class PlayerController {
     this._onKeyDown = (e) => this._setKey(e, true);
     this._onKeyUp = (e) => this._setKey(e, false);
     this._onMouseMove = (e) => this._look(e);
+  }
+
+  _newHat() {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0xe8d27a, roughness: 0.8, emissive: 0x2a2208, emissiveIntensity: 0.3 });
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.05, 18), mat);
+    brim.castShadow = true;
+    g.add(brim);
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.21, 0.24, 16), mat);
+    crown.position.y = 0.14;
+    crown.castShadow = true;
+    g.add(crown);
+    return g;
   }
 
   _buildMesh() {
@@ -97,6 +124,26 @@ export default class PlayerController {
     visor.position.set(0, 0.66, 0.18);
     rig.add(visor);
 
+    // Sunglasses (hidden until equipped) — sit over the visor.
+    const sun = new THREE.Group();
+    const lensMat = new THREE.MeshStandardMaterial({ color: 0x0c0e14, emissive: 0x1a2636, emissiveIntensity: 0.5, roughness: 0.12, metalness: 0.4 });
+    for (const dx of [-0.09, 0.09]) {
+      const lens = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.1, 0.04), lensMat);
+      lens.position.set(dx, 0, 0);
+      sun.add(lens);
+    }
+    sun.position.set(0, 0.66, 0.21);
+    sun.visible = false;
+    rig.add(sun);
+    this.sunglasses = sun;
+
+    // Hat (hidden until equipped) — sits on the head; can wobble + fall off.
+    const hat = this._newHat();
+    hat.position.set(0, 0.86, 0);
+    hat.visible = false;
+    rig.add(hat);
+    this.hat = hat;
+
     const makeLimb = (w, len) => {
       const pivot = new THREE.Group();
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, w), limbMat);
@@ -111,7 +158,7 @@ export default class PlayerController {
     this.legL = makeLimb(0.18, 0.82); this.legL.position.set(-0.15, -0.08, 0); rig.add(this.legL);
     this.legR = makeLimb(0.18, 0.82); this.legR.position.set(0.15, -0.08, 0); rig.add(this.legR);
 
-    // Umbrella, carried at the right shoulder; hidden until picked up.
+    // Umbrella (hidden until picked up), carried at the right shoulder.
     const umb = new THREE.Group();
     const pole = new THREE.Mesh(
       new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6),
@@ -144,9 +191,17 @@ export default class PlayerController {
 
   animate(dt) {
     this._animTime += dt;
+    this._updateFallingHat(dt);
+
+    // Hat wobble — gentle when steady, frantic when it's about to blow off.
+    if (this.hasHat && this.hat) {
+      const speed = Math.hypot(this.velocity.x, this.velocity.z);
+      const wob = 0.04 + (speed > HAT_SHAKE_SPEED ? 0.35 : 0) + (1 - this.hatStability) * 0.45;
+      this.hat.rotation.z = Math.sin(this._animTime * 22) * wob;
+      this.hat.rotation.x = Math.cos(this._animTime * 19) * wob * 0.6;
+    }
 
     if (this.onZipline) {
-      // Hang from the cable: arms up, legs dangling.
       const k = 1 - Math.pow(0.0008, dt);
       this.armL.rotation.x = lerp(this.armL.rotation.x, -2.7, k);
       this.armR.rotation.x = lerp(this.armR.rotation.x, -2.7, k);
@@ -158,7 +213,6 @@ export default class PlayerController {
     }
 
     if (this.sliding) {
-      // Crouch low and lean forward.
       const k = 1 - Math.pow(0.0001, dt);
       this.rig.position.y = lerp(this.rig.position.y, -0.32, k);
       this.rig.rotation.x = lerp(this.rig.rotation.x, 0.5, k);
@@ -181,7 +235,7 @@ export default class PlayerController {
       this.rig.rotation.x = lerp(this.rig.rotation.x, 0.08, k);
       this.rig.position.y = lerp(this.rig.position.y, 0, k);
     } else if (running) {
-      const amp = Math.min(speed / PLAYER_SPEED, 1);
+      const amp = Math.min(speed / PLAYER_SPEED, 1.4);
       this._animPhase += dt * (7 + amp * 7);
       const s = Math.sin(this._animPhase);
       this.legL.rotation.x = s * 0.9 * amp;
@@ -215,6 +269,20 @@ export default class PlayerController {
     }
   }
 
+  _updateFallingHat(dt) {
+    const f = this._fallingHat;
+    if (!f) return;
+    f.v.y -= GRAVITY * dt;
+    f.mesh.position.addScaledVector(f.v, dt);
+    f.mesh.rotation.x += f.spin.x * dt;
+    f.mesh.rotation.z += f.spin.z * dt;
+    f.life -= dt;
+    if (f.mesh.position.y < 0.1 || f.life <= 0) {
+      this.scene.remove(f.mesh);
+      this._fallingHat = null;
+    }
+  }
+
   enable() {
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
@@ -244,7 +312,18 @@ export default class PlayerController {
     this.slideTime = 0;
     this.slideCooldown = 0;
     this.onZipline = false;
+    this.crouching = false;
+    this.isSprinting = false;
+    this.isWalking = false;
+    this.stamina = 1;
+    this.hasHat = false;
+    this.hatStability = 1;
+    this.hasSunglasses = false;
+    this.sunglassesOn = false;
     if (this.umbrella) this.umbrella.visible = false;
+    if (this.hat) { this.hat.visible = false; this.hat.rotation.set(0, 0, 0); }
+    if (this.sunglasses) this.sunglasses.visible = false;
+    if (this._fallingHat) { this.scene.remove(this._fallingHat.mesh); this._fallingHat = null; }
 
     this._animPhase = 0;
     this._animTime = 0;
@@ -259,7 +338,7 @@ export default class PlayerController {
     }
   }
 
-  // ---- abilities ----------------------------------------------------------
+  // ---- gear ---------------------------------------------------------------
   giveUmbrella() {
     this.hasUmbrella = true;
     this.umbrellaOpen = true;
@@ -278,9 +357,42 @@ export default class PlayerController {
       this.umbrella.rotation.z = 0;
       this.umbrellaCanopy.scale.setScalar(1);
     } else {
-      this.umbrella.rotation.z = -1.25; // folded, carried at the side
+      this.umbrella.rotation.z = -1.25;
       this.umbrellaCanopy.scale.setScalar(0.32);
     }
+  }
+
+  giveHat() {
+    this.hasHat = true;
+    this.hatStability = 1;
+    if (this.hat) this.hat.visible = true;
+  }
+
+  _dropHat() {
+    this.hasHat = false;
+    if (this.hat) this.hat.visible = false;
+    // Spawn a tumbling hat that flies off and falls away.
+    const fall = this._newHat();
+    fall.position.set(this.mesh.position.x, this.mesh.position.y + 0.95, this.mesh.position.z);
+    this.scene.add(fall);
+    const yaw = this.mesh.rotation.y;
+    this._fallingHat = {
+      mesh: fall,
+      v: new THREE.Vector3(-Math.sin(yaw) * 2 + (Math.random() - 0.5) * 2, 3.5, -Math.cos(yaw) * 2 + (Math.random() - 0.5) * 2),
+      spin: new THREE.Vector3((Math.random() - 0.5) * 14, 0, (Math.random() - 0.5) * 14),
+      life: 3,
+    };
+  }
+
+  giveSunglasses() {
+    this.hasSunglasses = true;
+    this.sunglassesOn = true;
+    if (this.sunglasses) this.sunglasses.visible = true;
+  }
+
+  _toggleSunglasses() {
+    this.sunglassesOn = !this.sunglassesOn;
+    if (this.sunglasses) this.sunglasses.visible = this.sunglassesOn;
   }
 
   _startSlide() {
@@ -289,7 +401,7 @@ export default class PlayerController {
     this.sliding = true;
     this.slideTime = SLIDE_DURATION;
     this.half.y = FULL_HALF_Y * SLIDE_HEIGHT_MULT;
-    this.mesh.position.y -= FULL_HALF_Y - this.half.y; // keep feet on the ground
+    this.mesh.position.y -= FULL_HALF_Y - this.half.y;
   }
 
   _endSlide() {
@@ -309,8 +421,13 @@ export default class PlayerController {
     if (code === 'Space') e.preventDefault();
     if (down && !was) {
       if (code === 'KeyE' && this.hasUmbrella) this._toggleUmbrella();
-      if (code === 'ShiftLeft' || code === 'ShiftRight') this._startSlide();
+      if (code === 'KeyG' && this.hasSunglasses) this._toggleSunglasses();
+      if (code === 'KeyC') {
+        this.crouching = true;
+        if (Math.hypot(this.velocity.x, this.velocity.z) > PLAYER_SPEED * 0.7) this._startSlide();
+      }
     }
+    if (!down && code === 'KeyC') this.crouching = false;
   }
 
   _look(e) {
@@ -335,20 +452,13 @@ export default class PlayerController {
     return this._move;
   }
 
-  /**
-   * @param {number} dt
-   * @param {THREE.Box3[]} colliders
-   * @param {THREE.Camera} camera
-   */
   update(dt, colliders, camera) {
-    // On a zipline, the ZiplineSystem owns position — just present & follow.
     if (this.onZipline) {
       this._updateCamera(camera);
       this.animate(dt);
       return;
     }
 
-    // Slide timers.
     if (this.sliding) {
       this.slideTime -= dt;
       if (this.slideTime <= 0) this._endSlide();
@@ -357,16 +467,25 @@ export default class PlayerController {
     }
 
     const wish = this._wishDirection();
+    const moving = wish.lengthSq() > 1e-4;
+
+    // Sprint (hold Shift) vs walk (hold C). Sprint burns stamina.
+    const wantSprint = (this.keys.ShiftLeft || this.keys.ShiftRight) && moving && this.onGround && !this.sliding && !this.crouching;
+    this.isSprinting = wantSprint && this.stamina > 0;
+    this.isWalking = this.crouching && !this.sliding;
+    if (this.isSprinting) this.stamina = Math.max(0, this.stamina - SPRINT_STAMINA_DRAIN * dt);
+    else this.stamina = Math.min(1, this.stamina + SPRINT_STAMINA_RECOVER * dt);
 
     let spd = PLAYER_SPEED;
-    if (this.umbrellaOpen) spd *= UMBRELLA_SPEED_MULT;
     if (this.sliding) spd *= SLIDE_SPEED_MULT;
+    else if (this.isSprinting) spd *= SPRINT_SPEED_MULT;
+    else if (this.isWalking) spd *= WALK_SPEED_MULT;
+    if (this.umbrellaOpen) spd *= UMBRELLA_SPEED_MULT;
 
     const accel = PLAYER_ACCEL * dt;
     this.velocity.x = approach(this.velocity.x, wish.x * spd, accel);
     this.velocity.z = approach(this.velocity.z, wish.z * spd, accel);
 
-    // Jump (cancels a slide).
     this.timeSinceGround = this.onGround ? 0 : this.timeSinceGround + dt;
     if (this.keys.Space && this.timeSinceGround <= COYOTE_TIME) {
       if (this.sliding) this._endSlide();
@@ -375,7 +494,12 @@ export default class PlayerController {
       this.timeSinceGround = COYOTE_TIME + 1;
     }
 
-    this.velocity.y -= GRAVITY * dt;
+    // Gravity — an open umbrella turns a fall into a slow glide.
+    let g = GRAVITY;
+    const gliding = !this.onGround && this.umbrellaOpen;
+    if (gliding) g *= UMBRELLA_GLIDE_GRAVITY_MULT;
+    this.velocity.y -= g * dt;
+    if (gliding && this.velocity.y < -UMBRELLA_GLIDE_MAX_FALL) this.velocity.y = -UMBRELLA_GLIDE_MAX_FALL;
 
     const p = this.mesh.position;
     p.x += this.velocity.x * dt;
@@ -385,6 +509,17 @@ export default class PlayerController {
     this.onGround = false;
     for (let i = 0; i < 3; i++) {
       if (this._resolve(p, colliders)) this.onGround = true;
+    }
+
+    // Hat physics: too fast for too long and it shakes loose.
+    if (this.hasHat) {
+      const sp = Math.hypot(this.velocity.x, this.velocity.z);
+      if (sp > HAT_SHAKE_SPEED) {
+        this.hatStability -= HAT_DRAIN_RATE * dt;
+        if (this.hatStability <= 0) this._dropHat();
+      } else {
+        this.hatStability = Math.min(1, this.hatStability + HAT_RECOVER_RATE * dt);
+      }
     }
 
     if (wish.lengthSq() > 1e-4) {
@@ -469,7 +604,7 @@ export default class PlayerController {
 }
 
 const ALLOWED = new Set([
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE', 'KeyG', 'KeyC',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight',
 ]);
 

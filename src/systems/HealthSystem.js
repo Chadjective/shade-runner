@@ -32,13 +32,14 @@ export default class HealthSystem {
   /**
    * @param {number} dt seconds
    * @param {boolean} inSun whether the player is currently exposed
+   * @param {number} gearMult extra sun-damage multiplier from gear (hat/glasses)
    */
-  update(dt, inSun) {
+  update(dt, inSun, gearMult = 1) {
     this.inSun = inSun;
     if (this.sunscreen > 0) this.sunscreen = Math.max(0, this.sunscreen - dt);
 
     if (inSun) {
-      const mult = this.sunscreen > 0 ? SUNSCREEN_DAMAGE_MULT : 1;
+      const mult = (this.sunscreen > 0 ? SUNSCREEN_DAMAGE_MULT : 1) * gearMult;
       this.health -= SUN_DAMAGE_RATE * mult * dt;
       this.exposure = Math.min(1, this.exposure + dt * 2.2);
     } else {

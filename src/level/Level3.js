@@ -176,6 +176,8 @@ export default function buildLevel3() {
 
   // -- interactive content --------------------------------------------------
   const items = [
+    { type: 'hat', x: 0, y: 1.0, z: -16 }, // alley
+    { type: 'sunglasses', x: 3, y: 1.0, z: -50 }, // first boulevard
     { type: 'water', x: 3, y: 1.0, z: -88 }, // market
     { type: 'sunscreen', x: -7, y: 3.9, z: -138 }, // high-road walkway
     { type: 'water', x: 7, y: 1.0, z: -138 }, // low-road tunnel

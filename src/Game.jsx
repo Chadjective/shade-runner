@@ -15,9 +15,11 @@ import {
   SKY_DAWN,
   MAX_HEALTH,
   COOL_RECOVERY_RATE,
+  SUNGLASSES_DAMAGE_MULT,
+  HAT_DAMAGE_MULT,
 } from './utils/constants.js';
 
-const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!' };
+const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!', hat: 'Hat!', sunglasses: 'Sunglasses!' };
 
 /**
  * Game owns the imperative Three.js world and the per-frame game loop. React
@@ -182,6 +184,13 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           sliding: player.sliding,
           onZipline: player.onZipline,
           cooling: lastCooling,
+          hasHat: player.hasHat,
+          hatStability: player.hatStability,
+          hasSunglasses: player.hasSunglasses,
+          sunglassesOn: player.sunglassesOn,
+          sprinting: player.isSprinting,
+          walking: player.isWalking,
+          stamina: player.stamina,
         });
       }
     };
@@ -199,7 +208,11 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       lastRawInSun = rawInSun;
       // An open umbrella is mobile shade.
       const inSun = rawInSun && !player.umbrellaOpen;
-      health.update(dt, inSun);
+      // Gear softens the sun: sunglasses (when worn) and a hat stack with sunscreen.
+      const gearMult =
+        (player.hasSunglasses && player.sunglassesOn ? SUNGLASSES_DAMAGE_MULT : 1) *
+        (player.hasHat ? HAT_DAMAGE_MULT : 1);
+      health.update(dt, inSun, gearMult);
 
       // Cooling zones (misters / fountains) recover health fast, even in sun.
       let cooling = false;
@@ -217,6 +230,8 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       const picked = items.update(dt, pp);
       for (const type of picked) {
         if (type === 'umbrella') player.giveUmbrella();
+        else if (type === 'hat') player.giveHat();
+        else if (type === 'sunglasses') player.giveSunglasses();
         else health.applyPickup(type);
         pickupLabel = ITEM_LABEL[type] || type;
         pickupId++;
@@ -270,6 +285,10 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
         jump: () => { player.keys.Space = true; },
         giveUmbrella: () => player.giveUmbrella(),
         toggleUmbrella: () => player._toggleUmbrella(),
+        giveHat: () => player.giveHat(),
+        giveSunglasses: () => player.giveSunglasses(),
+        toggleSunglasses: () => player._toggleSunglasses(),
+        setCrouch: (v) => { player.crouching = v; },
         slide: () => player._startSlide(),
         state: () => ({
           pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
@@ -282,6 +301,12 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           sliding: player.sliding,
           onZipline: player.onZipline,
           cooling: lastCooling,
+          hasHat: player.hasHat,
+          hatStability: +player.hatStability.toFixed(2),
+          sunglassesOn: player.sunglassesOn,
+          sprinting: player.isSprinting,
+          walking: player.isWalking,
+          stamina: +player.stamina.toFixed(2),
           vehiclesZ: traffic.vehicles.map((v) => +v.mesh.position.z.toFixed(1)),
           elapsed: +elapsed.toFixed(2),
           sunProgress: +sun.getProgress().toFixed(3),
@@ -345,7 +370,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           <button className="btn" onClick={() => startRef.current && startRef.current()}>
             Resume
           </button>
-          <div className="hint">WASD move · Mouse look · Space jump · Shift slide · E umbrella · Esc pause</div>
+          <div className="hint">WASD move · Mouse look · Space jump · Shift sprint · C crouch/slide · E umbrella · G shades · Esc pause</div>
         </div>
       )}
     </div>

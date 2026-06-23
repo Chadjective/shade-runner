@@ -32,11 +32,13 @@ export default function MainMenu({ levels, onStart }) {
         <div className="key"><span className="keycap">W A S D</span>Move</div>
         <div className="key"><span className="keycap">Mouse</span>Look</div>
         <div className="key"><span className="keycap">Space</span>Jump</div>
-        <div className="key"><span className="keycap">Shift</span>Slide</div>
+        <div className="key"><span className="keycap">Shift</span>Sprint</div>
+        <div className="key"><span className="keycap">C</span>Crouch / Slide</div>
         <div className="key"><span className="keycap">E</span>Umbrella</div>
+        <div className="key"><span className="keycap">G</span>Shades</div>
         <div className="key"><span className="keycap">Esc</span>Pause</div>
       </div>
-      <div className="hint">Tip: hug the shadows, ride a truck's shadow, grab an umbrella, and cool off at the fountains.</div>
+      <div className="hint">Tip: sprint to outrun the heat (but your hat may blow off), walk to keep it on, and pop the umbrella to glide down from the high road.</div>
     </div>
   );
 }

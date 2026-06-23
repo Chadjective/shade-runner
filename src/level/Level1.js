@@ -212,6 +212,8 @@ export default function buildLevel1() {
 
   // -- pickups --------------------------------------------------------------
   const items = [
+    { type: 'hat', x: 0, y: 1.0, z: -14 }, // alley: meet the sprint-vs-hat trade-off early
+    { type: 'sunglasses', x: -3, y: 1.0, z: -44 }, // plaza
     { type: 'water', x: 3, y: 1.0, z: -68 }, // market: a reward slightly off the racing line
     { type: 'umbrella', x: -3, y: 1.0, z: -100 }, // construction: grab cover before the gauntlet
     { type: 'sunscreen', x: 0, y: 1.0, z: -119 }, // right before the boulevard sun gauntlet
