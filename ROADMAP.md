@@ -62,10 +62,10 @@ All six built via `ZoneSystem` + partial shade and placed across L1–L3 (verifi
 
 ## Phase C — Traversal verbs (movement depth)
 
-- **🤸 Landing roll** (S–M) — land from a fall and tap to **roll**, keeping speed; mistime it and **stumble** (brief slow). Synergy: jump, glide, sprint.
-- **🎯 Dive** (S) — a directional lunge to **reach shade at the last second** (airborne slide). Synergy: slide, shade.
-- **🧗 Ledge-hang / climb** (L) — grab a shaded ledge to **wait out a sun sweep**, then climb up. Collision-heavy.
-- **🏃 Wall-run / vault** (L) — skip sunny stretches along a wall / vault low cover. Most complex; do last.
+- **🤸 Landing roll** (S–M) — ✅ **SHIPPED**. Hard landing + crouch (C) = roll (keep momentum); mistime it = stumble (brief slow).
+- **🎯 Dive** (S) — ✅ **SHIPPED**. F = a committed forward lunge into cover.
+- **🧗 Ledge-hang / climb** (L) — *remaining*. Grab a shaded ledge to wait out a sun sweep, then climb up. Collision-heavy.
+- **🏃 Wall-run / vault** (L) — *remaining*. Skip sunny stretches along a wall / vault low cover. Most complex; do last.
 
 ## Phase D — Living world (M–L)
 
