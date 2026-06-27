@@ -682,3 +682,31 @@ canvas {
 
 .menu-toggle:hover { background: rgba(255, 255, 255, 0.12); opacity: 1; }
 .menu-toggle.on { border-color: rgba(120, 200, 255, 0.7); background: rgba(80, 150, 255, 0.18); color: #d6ecff; }
+
+/* difficulty selector */
+.difficulty { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.difficulty-label { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.7; margin-right: 2px; }
+.diff-btn {
+  pointer-events: auto;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.diff-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.diff-btn.on { border-color: rgba(255, 180, 90, 0.85); background: rgba(255, 140, 60, 0.22); color: #ffd9b0; }
+
+/* eclipse: deep dim over everything */
+.tint.eclipse {
+  z-index: 8;
+  background: radial-gradient(ellipse at center, rgba(10, 12, 30, 0.5) 0%, rgba(3, 4, 14, 0.82) 100%);
+}
+
+.buff-fill.ice { background: linear-gradient(90deg, #cdefff, #6ad7ff); }
+
+.weather-banner.eclipse { background: rgba(20, 16, 50, 0.45); border: 1px solid rgba(150, 140, 220, 0.6); color: #d8d2ff; }

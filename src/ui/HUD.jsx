@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MAX_HEALTH, MAX_HYDRATION, SUNSCREEN_DURATION } from '../utils/constants.js';
+import { MAX_HEALTH, MAX_HYDRATION, SUNSCREEN_DURATION, ICE_RESERVE } from '../utils/constants.js';
 
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
@@ -26,7 +26,8 @@ export default function HUD({ stats, reduceFlashing }) {
     hasUmbrella, umbrellaOpen, sheltered, cooling, onZipline,
     hasHat, hatStability = 1, hasSunglasses, sunglassesOn, sprinting, stamina = 1,
     hydration = MAX_HYDRATION, dehydrated, heat = 0, windStrength = 0, coolMult = 1, coolStreak = 0,
-    raining, flaring, dusting, flareWarn, weatherIntensity = 0, onHazard, exposure01 = 1,
+    raining, flaring, dusting, eclipsing, flareWarn, weatherIntensity = 0, onHazard, exposure01 = 1,
+    coolReserve = 0,
   } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
   const hydraPct = Math.max(0, (hydration / MAX_HYDRATION) * 100);
@@ -77,6 +78,7 @@ export default function HUD({ stats, reduceFlashing }) {
       <div className="tint rain" style={{ opacity: raining ? weatherIntensity : 0 }} />
       <div className="tint dust" style={{ opacity: dustOpacity }} />
       <div className="tint flare" style={{ opacity: flareOpacity }} />
+      <div className="tint eclipse" style={{ opacity: eclipsing ? weatherIntensity * 0.7 : 0 }} />
 
       <div className="hud">
         <div className="health-wrap">
@@ -120,6 +122,14 @@ export default function HUD({ stats, reduceFlashing }) {
               </div>
             </div>
           )}
+          {coolReserve > 0 && (
+            <div className="buff">
+              <span>🧊 Cool Reserve</span>
+              <div className="buff-track">
+                <div className="buff-fill ice" style={{ width: `${(coolReserve / ICE_RESERVE) * 100}%` }} />
+              </div>
+            </div>
+          )}
           {hasUmbrella && <div className="buff"><span>☂️ Umbrella · {umbrellaOpen ? 'Open' : 'Closed'} (E)</span></div>}
           {hasSunglasses && <div className="buff"><span>🕶️ Shades · {sunglassesOn ? 'On' : 'Off'} (G)</span></div>}
         </div>
@@ -133,6 +143,7 @@ export default function HUD({ stats, reduceFlashing }) {
         {flaring && <div className="weather-banner flare">🔆 Solar Flare — get to shade!</div>}
         {raining && !flaring && <div className="weather-banner rain">🌧️ Rain — cool, but slippery</div>}
         {dusting && <div className="weather-banner dust">🌫️ Dust Storm</div>}
+        {eclipsing && <div className="weather-banner eclipse">🌑 Eclipse — total shade</div>}
 
         <div className="timer">
           <div className="timer-label">Time</div>

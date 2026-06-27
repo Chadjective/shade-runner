@@ -68,8 +68,10 @@ export default class SunSystem {
     scene.add(disc);
     this.disc = disc;
 
-    this._skyDawn = new THREE.Color(SKY_DAWN);
-    this._skyNoon = new THREE.Color(SKY_NOON);
+    // Sky drifts from skyStart -> skyEnd across the day (per-level overridable,
+    // e.g. a dusk level fading to orange).
+    this._skyDawn = new THREE.Color(opts.skyStart ?? SKY_DAWN);
+    this._skyNoon = new THREE.Color(opts.skyEnd ?? SKY_NOON);
     this._sky = new THREE.Color();
   }
 

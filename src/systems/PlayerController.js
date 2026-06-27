@@ -417,6 +417,20 @@ export default class PlayerController {
     }
   }
 
+  /** Lightweight respawn at a checkpoint — reposition + clear motion, keep gear. */
+  respawn(pos) {
+    this.mesh.position.copy(pos);
+    this.velocity.set(0, 0, 0);
+    this.onGround = false;
+    this.sliding = false;
+    this.diving = false;
+    this.rolling = false;
+    this.stumbling = false;
+    this.onZipline = false;
+    this.half.set(PLAYER_RADIUS, FULL_HALF_Y, PLAYER_RADIUS);
+    if (this.rig) { this.rig.rotation.x = 0; this.rig.position.y = 0; }
+  }
+
   // ---- gear ---------------------------------------------------------------
   giveUmbrella() {
     this.hasUmbrella = true;

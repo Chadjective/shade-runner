@@ -105,6 +105,20 @@ export const HEAT_DRIFT = 1.4; // sideways drift accel at full heat, in the sun
 export const STREAK_PER_MULT = 5; // seconds of staying cool per +1x
 export const STREAK_MAX_MULT = 8;
 
+// --- Eclipse (rare full-shade window) --------------------------------------
+export const ECLIPSE_DAMAGE_MULT = 0.05; // the sun all but vanishes
+
+// --- Ice drink (cool-reserve buffer that melts over time) -------------------
+export const ICE_RESERVE = 40; // buffer that soaks sun damage before health
+export const ICE_MELT_RATE = 4; // reserve lost per second
+
+// --- Difficulty presets (sun damage × / sun cycle ×) -----------------------
+export const DIFFICULTIES = {
+  mellow: { label: 'Mellow', damage: 0.6, cycle: 1.5 },
+  normal: { label: 'Normal', damage: 1.0, cycle: 1.0 },
+  scorching: { label: 'Scorching', damage: 1.45, cycle: 0.7 },
+};
+
 // --- Weather events (rain / solar flare / dust storm) ----------------------
 export const WEATHER_CALM = 14; // seconds of calm between events
 export const WEATHER_DURATION = 7; // how long an event lasts

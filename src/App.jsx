@@ -27,6 +27,12 @@ export default function App() {
   const [reduceFlashing, setReduceFlashing] = useState(() => {
     try { return localStorage.getItem('sr.reduceFlashing') === '1'; } catch { return false; }
   });
+  const [difficulty, setDifficulty] = useState(() => {
+    try { return localStorage.getItem('sr.difficulty') || 'normal'; } catch { return 'normal'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sr.difficulty', difficulty); } catch { /* ignore */ }
+  }, [difficulty]);
 
   // Tame the flashing/shimmer effects (flares, heat-haze, dust) for
   // photosensitivity. A root class drives the CSS; the choice is persisted.
@@ -61,7 +67,7 @@ export default function App() {
     <>
       {phase === 'playing' && (
         <>
-          <Game key={runId} levelIndex={level} onStats={onStats} onDeath={onDeath} onWin={onWin} />
+          <Game key={runId} levelIndex={level} difficulty={difficulty} onStats={onStats} onDeath={onDeath} onWin={onWin} />
           <HUD stats={stats} reduceFlashing={reduceFlashing} />
         </>
       )}
@@ -72,6 +78,8 @@ export default function App() {
           onStart={startLevel}
           reduceFlashing={reduceFlashing}
           onToggleReduceFlashing={() => setReduceFlashing((v) => !v)}
+          difficulty={difficulty}
+          onSetDifficulty={setDifficulty}
         />
       )}
 

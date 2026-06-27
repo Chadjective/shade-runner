@@ -33,6 +33,10 @@ export default function WinScreen({ result, onReplay, onMenu }) {
           <div className="stat-cap">Best Cool Streak</div>
         </div>
         <div className="stat">
+          <div className="stat-num">{result.deaths ?? 0}</div>
+          <div className="stat-cap">Deaths</div>
+        </div>
+        <div className="stat">
           <div className="stat-num">{rank(result.health)}</div>
           <div className="stat-cap">Rank</div>
         </div>

@@ -10,6 +10,8 @@ import {
   HYDRATION_LOW,
   DEHYDRATION_DMG_MULT,
   WATER_HYDRATE,
+  ICE_RESERVE,
+  ICE_MELT_RATE,
 } from '../utils/constants.js';
 
 /**
@@ -32,6 +34,7 @@ export default class HealthSystem {
     this.exposure = 0;
     this.sunscreen = 0;
     this.hydration = MAX_HYDRATION;
+    this.coolReserve = 0; // ice-drink buffer that soaks sun damage, then melts
   }
 
   /**
@@ -42,6 +45,7 @@ export default class HealthSystem {
   update(dt, inSun, gearMult = 1) {
     this.inSun = inSun;
     if (this.sunscreen > 0) this.sunscreen = Math.max(0, this.sunscreen - dt);
+    if (this.coolReserve > 0) this.coolReserve = Math.max(0, this.coolReserve - ICE_MELT_RATE * dt);
 
     if (inSun) {
       this.hydration = Math.max(0, this.hydration - HYDRATION_DRAIN * dt);
@@ -50,7 +54,14 @@ export default class HealthSystem {
         (this.sunscreen > 0 ? SUNSCREEN_DAMAGE_MULT : 1) *
         gearMult *
         (dehydrated ? DEHYDRATION_DMG_MULT : 1);
-      this.health -= SUN_DAMAGE_RATE * mult * dt;
+      let dmg = SUN_DAMAGE_RATE * mult * dt;
+      // The cool reserve takes the hit before your health does.
+      if (this.coolReserve > 0) {
+        const absorbed = Math.min(this.coolReserve, dmg);
+        this.coolReserve -= absorbed;
+        dmg -= absorbed;
+      }
+      this.health -= dmg;
       this.exposure = Math.min(1, this.exposure + dt * 2.2);
     } else {
       this.health += SHADE_RECOVERY_RATE * dt;
@@ -75,6 +86,10 @@ export default class HealthSystem {
     if (type === 'sunscreen') {
       this.sunscreen = SUNSCREEN_DURATION;
       return 'Sunscreen!';
+    }
+    if (type === 'ice') {
+      this.coolReserve = ICE_RESERVE;
+      return '🧊 Cool Reserve!';
     }
     return '';
   }

@@ -1,9 +1,11 @@
+import { DIFFICULTIES } from '../utils/constants.js';
+
 /**
  * Start screen. "Start Run" begins at level 1; the level cards let you jump
  * straight to any level. The actual pointer-lock grab happens on the first
  * click inside the game.
  */
-export default function MainMenu({ levels, onStart, reduceFlashing, onToggleReduceFlashing }) {
+export default function MainMenu({ levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty }) {
   return (
     <div className="overlay menu">
       <div className="tagline">Stay cool. Stay alive.</div>
@@ -13,6 +15,20 @@ export default function MainMenu({ levels, onStart, reduceFlashing, onToggleRedu
         shade keeps you alive, and it shrinks as the sun climbs. Grab water and
         sunscreen, pick your route, and reach the covered pavilion before you cook.
       </p>
+
+      <div className="difficulty">
+        <span className="difficulty-label">Difficulty</span>
+        {Object.entries(DIFFICULTIES).map(([key, d]) => (
+          <button
+            key={key}
+            className={`diff-btn ${difficulty === key ? 'on' : ''}`}
+            onClick={() => onSetDifficulty(key)}
+            aria-pressed={difficulty === key}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
 
       <button className="btn" onClick={() => onStart(0)}>▶ Start Run</button>
 

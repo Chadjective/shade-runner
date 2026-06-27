@@ -7,6 +7,7 @@ const PALETTE = {
   umbrella: { body: 0xff5a3c, glow: 0x9c2a12 },
   hat: { body: 0xe8d27a, glow: 0x8a6a18 },
   sunglasses: { body: 0x2a2f3a, glow: 0x101218 },
+  ice: { body: 0x9fe8ff, glow: 0x4ab0e0 },
 };
 
 /**
@@ -52,6 +53,12 @@ export default class ItemSystem {
       const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.28, 16), bodyMat);
       crown.position.y = 0.16;
       group.add(crown);
+    } else if (type === 'ice') {
+      const cube = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.26, 0),
+        new THREE.MeshStandardMaterial({ color: c.body, emissive: c.glow, emissiveIntensity: 0.7, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.8, flatShading: true })
+      );
+      group.add(cube);
     } else if (type === 'sunglasses') {
       const lensMat = new THREE.MeshStandardMaterial({ color: 0x101218, emissive: 0x223044, emissiveIntensity: 0.6, roughness: 0.15, metalness: 0.3 });
       for (const dx of [-0.2, 0.2]) {

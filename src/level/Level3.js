@@ -234,8 +234,8 @@ export default function buildLevel3() {
     sun: { cycle: 95, startAngle: 16 },
     // Exposed crosstown run — gustier than the others.
     wind: { gustMax: 1.2, period: 7.5 },
-    // Heatwave finale: solar flares and dust storms roll through.
-    weather: { events: ['flare', 'dust'], calm: 12 },
+    // Heatwave finale: solar flares, dust storms, and a rare eclipse.
+    weather: { events: ['flare', 'dust', 'eclipse'], calm: 12 },
     dynamicShade: {
       clouds: { count: 4, y: 32, shade: 0.6, speed: 5, spanX: 90, zFrom: -10, zTo: -290, size: 12 },
       blimp: { y: 34, shade: 0.85, speed: 4, xFrom: -16, xTo: 16, z: -230 },

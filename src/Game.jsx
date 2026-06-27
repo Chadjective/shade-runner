@@ -12,12 +12,14 @@ import WindSystem from './systems/WindSystem.js';
 import WeatherSystem from './systems/WeatherSystem.js';
 import ZoneSystem from './systems/ZoneSystem.js';
 import DynamicShadeSystem from './systems/DynamicShadeSystem.js';
+import WindTellSystem from './systems/WindTellSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
   AMBIENT_GROUND_COLOR,
   SKY_DAWN,
   MAX_HEALTH,
+  MAX_HYDRATION,
   COOL_RECOVERY_RATE,
   COOL_HYDRATE_RATE,
   SUNGLASSES_DAMAGE_MULT,
@@ -31,9 +33,11 @@ import {
   DUST_HYDRATION_DRAIN,
   DUST_WIND_PUSH,
   UPDRAFT_POWER,
+  ECLIPSE_DAMAGE_MULT,
+  DIFFICULTIES,
 } from './utils/constants.js';
 
-const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!', hat: 'Hat!', sunglasses: 'Sunglasses!' };
+const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!', hat: 'Hat!', sunglasses: 'Sunglasses!', ice: '🧊 Ice Drink' };
 
 /**
  * Game owns the imperative Three.js world and the per-frame game loop. React
@@ -43,7 +47,7 @@ const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umb
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -78,6 +82,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const level = levelDef.build();
     scene.add(level.group);
     const sun = new SunSystem(scene, level.sun);
+    // Difficulty: stretch/shrink the day and scale sun damage.
+    const diff = DIFFICULTIES[difficulty] || DIFFICULTIES.normal;
+    sun.cycle *= diff.cycle;
     const traffic = new TrafficSystem(scene, level.traffic || []);
     // Vehicles block the player and cast moving shade.
     level.colliders.push(...traffic.colliders);
@@ -89,6 +96,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const sweat = new SweatSystem(scene);
     const zip = new ZiplineSystem(scene, level.ziplines || []);
     const wind = new WindSystem(level.wind);
+    const windTells = new WindTellSystem(scene, level.windTells || []);
     const weather = new WeatherSystem(level.weather || {});
     // Surface zones: explicit level.zones + legacy coolZones promoted to cool zones.
     const zones = new ZoneSystem(scene, [
@@ -96,6 +104,18 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       ...((level.coolZones || []).map((c) => ({ type: 'cool', x: c.x, z: c.z, r: c.r }))),
     ]);
     const updrafts = level.updrafts || [];
+
+    // Checkpoints: glowing markers you light up by passing; respawn point on death.
+    const checkpoints = (level.checkpoints || []).map((c) => ({ x: c.x, z: c.z }));
+    const cpMarkers = checkpoints.map((c) => {
+      const m = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.35, 0.35, 6, 8),
+        new THREE.MeshStandardMaterial({ color: 0x35ff7a, emissive: 0x1a7a3a, emissiveIntensity: 0.4, transparent: true, opacity: 0.5 })
+      );
+      m.position.set(c.x, 3, c.z);
+      scene.add(m);
+      return m;
+    });
     const player = new PlayerController(scene, renderer.domElement);
     player.reset(level.startPos, level.startYaw);
     player.enable();
@@ -181,6 +201,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     let bestStreak = 0;
     let score = 0;
     let coolMult = 1;
+    let cpIndex = -1;
+    let lastCheckpoint = null;
+    let deaths = 0;
     const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
     const report = () => {
@@ -232,10 +255,13 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           raining: weather.is('rain'),
           flaring: weather.is('flare'),
           dusting: weather.is('dust'),
+          eclipsing: weather.is('eclipse'),
           flareWarn: weather.warningFor('flare'),
           weatherIntensity: weather.intensity,
           onHazard: lastHazard,
           exposure01: lastExposure01,
+          coolReserve: health.coolReserve,
+          deaths,
         });
       }
     };
@@ -252,11 +278,18 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       const raining = weather.is('rain');
       const flaring = weather.is('flare');
       const dusting = weather.is('dust');
+      const eclipsing = weather.is('eclipse');
+      if (eclipsing) {
+        // The sun all but vanishes — darken the scene.
+        sun.light.intensity *= 1 - 0.8 * weather.intensity;
+        if (scene.background) scene.background.multiplyScalar(1 - 0.55 * weather.intensity);
+      }
 
       // Wind (+ a dust storm's extra shove); wet ground gets skiddy.
       const dustPush = dusting ? DUST_WIND_PUSH * weather.intensity : 0;
       player.windStrength = wind.strength + dustPush;
       player.windVec.copy(wind.dir).multiplyScalar(player.windStrength);
+      windTells.update(dt, wind.dir, player.windStrength);
       player.heatDrift = health.inSun ? health.exposure : 0; // heatstroke wobble while baking
 
       // Surface zones (mud/mist/puddle/hazard/cool): query once on this frame's
@@ -288,11 +321,12 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       const gearMult =
         (player.hasSunglasses && player.sunglassesOn ? SUNGLASSES_DAMAGE_MULT : 1) *
         (player.hasHat ? HAT_DAMAGE_MULT : 1);
-      // Weather scales the sun: rain cools it right down, a flare spikes it.
+      // Weather scales the sun: rain/eclipse cool it down, a flare spikes it.
       let envMult = 1;
-      if (raining) envMult = RAIN_DAMAGE_MULT;
+      if (eclipsing) envMult = ECLIPSE_DAMAGE_MULT;
+      else if (raining) envMult = RAIN_DAMAGE_MULT;
       else if (flaring) envMult = FLARE_DAMAGE_MULT;
-      health.update(dt, inSun, gearMult * envMult * (inSun ? exposure01 : 1));
+      health.update(dt, inSun, gearMult * envMult * diff.damage * (inSun ? exposure01 : 1));
       if (raining) health.hydrate(RAIN_HYDRATE_RATE * dt);
       if (dusting) health.hydration = Math.max(0, health.hydration - DUST_HYDRATION_DRAIN * dt);
 
@@ -323,7 +357,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
 
       // Cool-streak scoring: stay out of the sun to build a multiplier; burning
       // resets it — but rain counts as cool, so it doesn't break your streak.
-      const burning = health.inSun && !raining;
+      const burning = health.inSun && !raining && !eclipsing;
       if (burning) coolStreak = 0;
       else coolStreak += dt;
       if (coolStreak > bestStreak) bestStreak = coolStreak;
@@ -332,14 +366,42 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
 
       elapsed += dt;
 
-      if (level.finishBox.containsPoint(player.getPosition())) {
+      // Checkpoints: light the furthest one passed; it becomes the respawn point.
+      let furthest = -1;
+      for (let i = 0; i < checkpoints.length; i++) {
+        if (pp.z <= checkpoints[i].z) furthest = i;
+      }
+      if (furthest > cpIndex) {
+        cpIndex = furthest;
+        lastCheckpoint = checkpoints[furthest];
+        cpMarkers[furthest].material.emissiveIntensity = 2;
+        cpMarkers[furthest].material.opacity = 0.9;
+        pickupLabel = '🚩 Checkpoint';
+        pickupId++;
+      }
+
+      if (level.finishBox.containsPoint(pp)) {
         finished = true;
         document.exitPointerLock();
-        onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak) });
+        onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak), deaths });
       } else if (health.dead) {
-        finished = true;
-        document.exitPointerLock();
-        onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak) });
+        if (lastCheckpoint) {
+          // Respawn at the last checkpoint rather than restarting the whole level.
+          deaths++;
+          player.respawn(new THREE.Vector3(lastCheckpoint.x, 0.9, lastCheckpoint.z));
+          health.health = MAX_HEALTH;
+          health.dead = false;
+          health.hydration = MAX_HYDRATION;
+          health.exposure = 0;
+          health.coolReserve = 0;
+          coolStreak = 0;
+          pickupLabel = '↻ Respawned';
+          pickupId++;
+        } else {
+          finished = true;
+          document.exitPointerLock();
+          onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak), deaths });
+        }
       }
       report();
     };
@@ -385,6 +447,8 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
         slide: () => player._startSlide(),
         dive: () => player._startDive(),
         rollKey: () => { player._timeSinceRollKey = 0; }, // arm a landing roll (like tapping C)
+        pickup: (type) => health.applyPickup(type), // water / sunscreen / ice
+        kill: () => { health.health = 0; health.dead = true; }, // force death (test respawn)
         state: () => ({
           pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
           health: +health.health.toFixed(1),
@@ -407,6 +471,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           stumbling: player.stumbling,
           hydration: +health.hydration.toFixed(1),
           dehydrated: health.dehydrated,
+          coolReserve: +health.coolReserve.toFixed(1),
+          deaths,
+          checkpoint: cpIndex,
           windStrength: +wind.strength.toFixed(2),
           heatDrift: +player.heatDrift.toFixed(2),
           traction: player.traction,
