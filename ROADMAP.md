@@ -22,6 +22,13 @@ substantial subsystem or collision-heavy work.
 
 ---
 
+> **Shipped since this roadmap:** the `ZoneSystem` + partial-shade infra, all of
+> **Phase A** (hot asphalt, grates, mist, mud, puddles, tinted skybridges),
+> all of **Phase B** (drifting clouds, chasing blimp megashadow, retracting
+> awnings — via `DynamicShadeSystem`), the **accessibility reduce-flashing
+> toggle** (+ `prefers-reduced-motion`), and a live **GitHub Pages deploy**
+> (auto-deploys on push). Remaining: AudioSystem, Phases C–G.
+
 ## 🔧 Cross-cutting infrastructure (build these first — they unblock many items)
 
 These refactors make the rest of the phases small instead of medium.
