@@ -220,6 +220,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           sprinting: player.isSprinting,
           walking: player.isWalking,
           stamina: player.stamina,
+          diving: player.diving,
+          rolling: player.rolling,
+          stumbling: player.stumbling,
           hydration: health.hydration,
           dehydrated: health.dehydrated,
           heat: health.inSun ? health.exposure : 0,
@@ -380,6 +383,8 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
         toggleSunglasses: () => player._toggleSunglasses(),
         setCrouch: (v) => { player.crouching = v; },
         slide: () => player._startSlide(),
+        dive: () => player._startDive(),
+        rollKey: () => { player._timeSinceRollKey = 0; }, // arm a landing roll (like tapping C)
         state: () => ({
           pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
           health: +health.health.toFixed(1),
@@ -397,6 +402,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           sprinting: player.isSprinting,
           walking: player.isWalking,
           stamina: +player.stamina.toFixed(2),
+          diving: player.diving,
+          rolling: player.rolling,
+          stumbling: player.stumbling,
           hydration: +health.hydration.toFixed(1),
           dehydrated: health.dehydrated,
           windStrength: +wind.strength.toFixed(2),
@@ -478,7 +486,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           <button className="btn" onClick={() => startRef.current && startRef.current()}>
             Resume
           </button>
-          <div className="hint">WASD move · Mouse look · Space jump · Shift sprint · C crouch/slide · E umbrella · G shades · Esc pause</div>
+          <div className="hint">WASD move · Mouse look · Space jump · Shift sprint · C crouch/slide/roll · F dive · E umbrella · G shades · Esc pause</div>
         </div>
       )}
     </div>

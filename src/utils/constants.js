@@ -119,6 +119,17 @@ export const DUST_WIND_PUSH = 0.85; // extra wind strength during a dust storm
 // --- Updraft vents ---------------------------------------------------------
 export const UPDRAFT_POWER = 9; // upward velocity while standing in the column
 
+// --- Traversal verbs (Phase C: dive / landing roll) ------------------------
+export const DIVE_SPEED = 14; // forward lunge speed
+export const DIVE_UP = 2.5; // small hop as you dive
+export const DIVE_DURATION = 0.5; // committed-lunge time
+export const HARD_LAND_SPEED = 11; // impact speed that needs a roll or you stumble
+export const ROLL_DURATION = 0.45;
+export const ROLL_SPEED_MULT = 1.2; // a clean roll keeps (a bit of) momentum
+export const ROLL_WINDOW = 0.2; // grace around landing to press crouch and roll
+export const STUMBLE_DURATION = 0.5;
+export const STUMBLE_SPEED_MULT = 0.35; // botched landing: you lurch and slow
+
 // --- Surface zones (Phase A) -----------------------------------------------
 export const HOT_ZONE_DPS = 14; // contact damage/sec on hot grates/coals/asphalt
 export const MUD_SPEED_MULT = 0.5; // movement speed in sand/mud

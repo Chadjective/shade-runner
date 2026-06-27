@@ -33,6 +33,15 @@ import {
   HAT_WIND_THRESHOLD,
   HAT_WIND_DRAIN,
   HEAT_DRIFT,
+  DIVE_SPEED,
+  DIVE_UP,
+  DIVE_DURATION,
+  HARD_LAND_SPEED,
+  ROLL_DURATION,
+  ROLL_SPEED_MULT,
+  ROLL_WINDOW,
+  STUMBLE_DURATION,
+  STUMBLE_SPEED_MULT,
 } from '../utils/constants.js';
 
 const FULL_HALF_Y = PLAYER_HEIGHT / 2;
@@ -74,6 +83,16 @@ export default class PlayerController {
     this.hasSunglasses = false;
     this.sunglassesOn = false;
     this._fallingHat = null;
+
+    // Traversal verbs (Phase C).
+    this.diving = false;
+    this.diveTime = 0;
+    this.rolling = false;
+    this.rollTime = 0;
+    this.stumbling = false;
+    this.stumbleTime = 0;
+    this._prevOnGround = false;
+    this._timeSinceRollKey = 99;
 
     // External forces, set by Game each step.
     this.windVec = new THREE.Vector3();
@@ -225,6 +244,40 @@ export default class PlayerController {
       return;
     }
 
+    if (this.rolling) {
+      // A full forward tumble, dipping low through the middle of the roll.
+      const p = 1 - this.rollTime / ROLL_DURATION;
+      this.rig.rotation.x = p * Math.PI * 2;
+      this.rig.position.y = -0.25 * Math.sin(p * Math.PI);
+      this.legL.rotation.x = 1.2; this.legR.rotation.x = 1.2;
+      this.armL.rotation.x = -0.6; this.armR.rotation.x = -0.6;
+      return;
+    }
+
+    if (this.diving) {
+      // Superman lunge: body horizontal, arms thrown forward.
+      const k = 1 - Math.pow(0.0006, dt);
+      this.rig.rotation.x = lerp(this.rig.rotation.x, 1.45, k);
+      this.rig.position.y = lerp(this.rig.position.y, -0.3, k);
+      this.armL.rotation.x = lerp(this.armL.rotation.x, -2.7, k);
+      this.armR.rotation.x = lerp(this.armR.rotation.x, -2.7, k);
+      this.legL.rotation.x = lerp(this.legL.rotation.x, 0.2, k);
+      this.legR.rotation.x = lerp(this.legR.rotation.x, -0.2, k);
+      return;
+    }
+
+    if (this.stumbling) {
+      // Off-balance lurch with flailing arms.
+      const k = 1 - Math.pow(0.01, dt);
+      this.rig.rotation.x = lerp(this.rig.rotation.x, 0.5, k);
+      this.rig.position.y = lerp(this.rig.position.y, -0.1, k);
+      this.armL.rotation.x = lerp(this.armL.rotation.x, -1.9, k);
+      this.armR.rotation.x = lerp(this.armR.rotation.x, -1.4, k);
+      this.legL.rotation.x = lerp(this.legL.rotation.x, 0.3, k);
+      this.legR.rotation.x = lerp(this.legR.rotation.x, -0.3, k);
+      return;
+    }
+
     if (this.sliding) {
       const k = 1 - Math.pow(0.0001, dt);
       this.rig.position.y = lerp(this.rig.position.y, -0.32, k);
@@ -337,6 +390,14 @@ export default class PlayerController {
     this.heatDrift = 0;
     this.traction = 1;
     this.zoneSpeedMult = 1;
+    this.diving = false;
+    this.diveTime = 0;
+    this.rolling = false;
+    this.rollTime = 0;
+    this.stumbling = false;
+    this.stumbleTime = 0;
+    this._prevOnGround = false;
+    this._timeSinceRollKey = 99;
     this.windVec.set(0, 0, 0);
     if (this.umbrella) this.umbrella.visible = false;
     if (this.hat) { this.hat.visible = false; this.hat.rotation.set(0, 0, 0); }
@@ -431,6 +492,40 @@ export default class PlayerController {
     this.slideCooldown = SLIDE_COOLDOWN;
   }
 
+  // A committed forward lunge — good for diving into shade at the last second.
+  _startDive() {
+    if (this.diving || this.rolling) return;
+    if (this.sliding) this._endSlide();
+    this.diving = true;
+    this.diveTime = DIVE_DURATION;
+    const sp = Math.hypot(this.velocity.x, this.velocity.z);
+    let dx, dz;
+    if (sp > 0.5) { dx = this.velocity.x / sp; dz = this.velocity.z / sp; }
+    else { dx = Math.sin(this.mesh.rotation.y); dz = Math.cos(this.mesh.rotation.y); }
+    this.velocity.x = dx * DIVE_SPEED;
+    this.velocity.z = dz * DIVE_SPEED;
+    this.velocity.y = DIVE_UP;
+    this.onGround = false;
+  }
+
+  _startRoll() {
+    this.stumbling = false;
+    this.rolling = true;
+    this.rollTime = ROLL_DURATION;
+  }
+
+  _startStumble() {
+    this.stumbling = true;
+    this.stumbleTime = STUMBLE_DURATION;
+    this.velocity.x *= 0.3;
+    this.velocity.z *= 0.3;
+  }
+
+  // Did the player ask to roll (crouch held, or tapped just before landing)?
+  _rollRequested() {
+    return !!this.keys.KeyC || this._timeSinceRollKey < ROLL_WINDOW;
+  }
+
   _setKey(e, down) {
     const code = e.code;
     if (!ALLOWED.has(code)) return;
@@ -440,9 +535,11 @@ export default class PlayerController {
     if (down && !was) {
       if (code === 'KeyE' && this.hasUmbrella) this._toggleUmbrella();
       if (code === 'KeyG' && this.hasSunglasses) this._toggleSunglasses();
+      if (code === 'KeyF') this._startDive();
       if (code === 'KeyC') {
         this.crouching = true;
-        if (Math.hypot(this.velocity.x, this.velocity.z) > PLAYER_SPEED * 0.7) this._startSlide();
+        this._timeSinceRollKey = 0; // arm a landing roll
+        if (this.onGround && Math.hypot(this.velocity.x, this.velocity.z) > PLAYER_SPEED * 0.7) this._startSlide();
       }
     }
     if (!down && code === 'KeyC') this.crouching = false;
@@ -484,11 +581,21 @@ export default class PlayerController {
       this.slideCooldown -= dt;
     }
 
+    // Traversal verb timers.
+    this._timeSinceRollKey += dt;
+    if (this.diving) { this.diveTime -= dt; if (this.diveTime <= 0) this.diving = false; }
+    if (this.rolling) {
+      this.rollTime -= dt;
+      if (this.rollTime <= 0) { this.rolling = false; if (this.rig) { this.rig.rotation.x = 0; this.rig.position.y = 0; } }
+    }
+    if (this.stumbling) { this.stumbleTime -= dt; if (this.stumbleTime <= 0) this.stumbling = false; }
+
     const wish = this._wishDirection();
     const moving = wish.lengthSq() > 1e-4;
 
     // Sprint (hold Shift) vs walk (hold C). Sprint burns stamina.
-    const wantSprint = (this.keys.ShiftLeft || this.keys.ShiftRight) && moving && this.onGround && !this.sliding && !this.crouching;
+    const wantSprint = (this.keys.ShiftLeft || this.keys.ShiftRight) && moving && this.onGround &&
+      !this.sliding && !this.crouching && !this.rolling && !this.stumbling && !this.diving;
     this.isSprinting = wantSprint && this.stamina > 0;
     this.isWalking = this.crouching && !this.sliding;
     if (this.isSprinting) this.stamina = Math.max(0, this.stamina - SPRINT_STAMINA_DRAIN * dt);
@@ -499,11 +606,16 @@ export default class PlayerController {
     else if (this.isSprinting) spd *= SPRINT_SPEED_MULT;
     else if (this.isWalking) spd *= WALK_SPEED_MULT;
     if (this.umbrellaOpen) spd *= UMBRELLA_SPEED_MULT;
+    if (this.rolling) spd *= ROLL_SPEED_MULT; // a clean roll keeps momentum
+    if (this.stumbling) spd *= STUMBLE_SPEED_MULT; // botched landing slows you
     spd *= this.zoneSpeedMult; // mud / sand drag
 
-    const accel = PLAYER_ACCEL * this.traction * dt;
-    this.velocity.x = approach(this.velocity.x, wish.x * spd, accel);
-    this.velocity.z = approach(this.velocity.z, wish.z * spd, accel);
+    // A dive is a committed lunge — keep its velocity, no steering accel.
+    if (!this.diving) {
+      const accel = PLAYER_ACCEL * this.traction * dt;
+      this.velocity.x = approach(this.velocity.x, wish.x * spd, accel);
+      this.velocity.z = approach(this.velocity.z, wish.z * spd, accel);
+    }
 
     // Wind shoves you sideways; an open umbrella catches much more of it, a
     // strong gust works the hat loose and even flips the umbrella shut.
@@ -549,10 +661,26 @@ export default class PlayerController {
     p.y += this.velocity.y * dt;
     p.z += this.velocity.z * dt;
 
+    const impactVy = this.velocity.y; // fall speed captured before resolve zeroes it
     this.onGround = false;
     for (let i = 0; i < 3; i++) {
       if (this._resolve(p, colliders)) this.onGround = true;
     }
+
+    // Landing: a hard impact needs a roll (crouch) or you stumble. A dive
+    // always commits to a roll-or-stumble on touchdown.
+    if (this.onGround && !this._prevOnGround) {
+      const impact = -impactVy;
+      if (this.diving) {
+        this.diving = false;
+        if (this._rollRequested()) this._startRoll();
+        else if (impact > HARD_LAND_SPEED * 0.5) this._startStumble();
+      } else if (impact > HARD_LAND_SPEED) {
+        if (this._rollRequested()) this._startRoll();
+        else this._startStumble();
+      }
+    }
+    this._prevOnGround = this.onGround;
 
     // Hat physics: too fast for too long and it shakes loose.
     if (this.hasHat) {
@@ -647,7 +775,7 @@ export default class PlayerController {
 }
 
 const ALLOWED = new Set([
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE', 'KeyG', 'KeyC',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE', 'KeyG', 'KeyC', 'KeyF',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight',
 ]);
 

@@ -33,7 +33,8 @@ export default function MainMenu({ levels, onStart, reduceFlashing, onToggleRedu
         <div className="key"><span className="keycap">Mouse</span>Look</div>
         <div className="key"><span className="keycap">Space</span>Jump</div>
         <div className="key"><span className="keycap">Shift</span>Sprint</div>
-        <div className="key"><span className="keycap">C</span>Crouch / Slide</div>
+        <div className="key"><span className="keycap">C</span>Crouch / Slide / Roll</div>
+        <div className="key"><span className="keycap">F</span>Dive</div>
         <div className="key"><span className="keycap">E</span>Umbrella</div>
         <div className="key"><span className="keycap">G</span>Shades</div>
         <div className="key"><span className="keycap">Esc</span>Pause</div>
