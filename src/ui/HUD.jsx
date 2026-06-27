@@ -26,7 +26,7 @@ export default function HUD({ stats, reduceFlashing }) {
     hasUmbrella, umbrellaOpen, sheltered, cooling, onZipline,
     hasHat, hatStability = 1, hasSunglasses, sunglassesOn, sprinting, stamina = 1,
     hydration = MAX_HYDRATION, dehydrated, heat = 0, windStrength = 0, coolMult = 1, coolStreak = 0,
-    raining, flaring, dusting, flareWarn, weatherIntensity = 0, onHazard,
+    raining, flaring, dusting, flareWarn, weatherIntensity = 0, onHazard, exposure01 = 1,
   } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
   const hydraPct = Math.max(0, (hydration / MAX_HYDRATION) * 100);
@@ -47,8 +47,12 @@ export default function HUD({ stats, reduceFlashing }) {
   else if (onZipline) expText = '🛼 Ziplining';
   else if (sheltered) expText = '☂️ Sheltered';
   else if (inSun) {
-    expClass = 'sun';
-    expText = protectedNow ? '🧴 Sun — Shielded' : '☀️ In Sun — Burning';
+    if (exposure01 < 0.8 && !protectedNow) {
+      expText = '⛅ Partial Shade'; // clouds / awning / tinted glass — reduced burn
+    } else {
+      expClass = 'sun';
+      expText = protectedNow ? '🧴 Sun — Shielded' : '☀️ In Sun — Burning';
+    }
   }
 
   const burning = (inSun && !sheltered && !cooling) || onHazard;

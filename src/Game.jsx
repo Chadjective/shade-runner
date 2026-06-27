@@ -11,6 +11,7 @@ import ZiplineSystem from './systems/ZiplineSystem.js';
 import WindSystem from './systems/WindSystem.js';
 import WeatherSystem from './systems/WeatherSystem.js';
 import ZoneSystem from './systems/ZoneSystem.js';
+import DynamicShadeSystem from './systems/DynamicShadeSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
@@ -80,7 +81,9 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const traffic = new TrafficSystem(scene, level.traffic || []);
     // Vehicles block the player and cast moving shade.
     level.colliders.push(...traffic.colliders);
-    const shade = new ShadeDetector([...level.occluders, ...traffic.occluders]);
+    // Drifting clouds / blimp / retracting awnings — moving + partial overhead shade.
+    const dynamicShade = new DynamicShadeSystem(scene, level.dynamicShade || {});
+    const shade = new ShadeDetector([...level.occluders, ...traffic.occluders, ...dynamicShade.occluders]);
     const health = new HealthSystem();
     const items = new ItemSystem(scene, level.items || []);
     const sweat = new SweatSystem(scene);
@@ -173,6 +176,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     let lastCooling = false;
     let lastHazard = false;
     let lastRawInSun = false;
+    let lastExposure01 = 1;
     let coolStreak = 0;
     let bestStreak = 0;
     let score = 0;
@@ -228,6 +232,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           flareWarn: weather.warningFor('flare'),
           weatherIntensity: weather.intensity,
           onHazard: lastHazard,
+          exposure01: lastExposure01,
         });
       }
     };
@@ -237,6 +242,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
     const step = (dt) => {
       sun.update(dt, player.getPosition());
       traffic.update(dt);
+      dynamicShade.update(dt, sun.toSun); // drift clouds/blimp, retract awnings
       zip.update(dt, player); // may set player.onZipline before player.update
       wind.update(dt);
       weather.update(dt);
@@ -272,6 +278,7 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
       // Partial shade (e.g. tinted skybridges) scales 0..1 instead of on/off.
       const exposure01 = shade.sunExposure(pp, sun.toSun);
       lastRawInSun = exposure01 > 0.05;
+      lastExposure01 = exposure01;
       // An open umbrella is mobile shade.
       const inSun = lastRawInSun && !player.umbrellaOpen;
       // Gear softens the sun: sunglasses (when worn) and a hat stack with sunscreen.
@@ -398,6 +405,12 @@ export default function Game({ levelIndex = 0, onStats, onDeath, onWin }) {
           zoneSpeed: +player.zoneSpeedMult.toFixed(2),
           onHazard: lastHazard,
           sunExposure: +shade.sunExposure(player.getPosition(), sun.toSun).toFixed(2),
+          dynOccluders: dynamicShade.occluders.length,
+          dynBlimpX: dynamicShade.blimp ? +dynamicShade.blimp.group.position.x.toFixed(1) : null,
+          dynShadows: [
+            ...dynamicShade.clouds.map((c) => ['cloud', +c.decal.position.x.toFixed(1), +c.decal.position.z.toFixed(1)]),
+            ...(dynamicShade.blimp ? [['blimp', +dynamicShade.blimp.decal.position.x.toFixed(1), +dynamicShade.blimp.decal.position.z.toFixed(1)]] : []),
+          ],
           weather: weather.current || (weather.warningFor('flare') ? 'flare(warn)' : 'calm'),
           weatherActive: weather.state === 'active',
           coolMult,

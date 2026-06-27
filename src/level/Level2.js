@@ -158,6 +158,9 @@ export default function buildLevel2() {
     ziplines,
     updrafts,
     weather: { events: ['flare'] }, // periodic solar flares
+    dynamicShade: {
+      clouds: { count: 2, y: 28, shade: 0.6, speed: 5, spanX: 60, zFrom: -8, zTo: -86, size: 10 },
+    },
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

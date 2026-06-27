@@ -255,6 +255,13 @@ export default function buildLevel1() {
     zones,
     traffic,
     weather: { events: ['rain'] }, // a passing shower partway through
+    dynamicShade: {
+      clouds: { count: 3, y: 30, shade: 0.6, speed: 5, spanX: 80, zFrom: -10, zTo: -150, size: 11 },
+      awnings: [
+        { x: 0, z: -74, w: 8, d: 3.5, y: 3.3, period: 9, phase: 0 },
+        { x: 0, z: -84, w: 8, d: 3.5, y: 3.3, period: 9, phase: 4.5 },
+      ],
+    },
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,
