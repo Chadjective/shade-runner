@@ -22,12 +22,14 @@ substantial subsystem or collision-heavy work.
 
 ---
 
-> **Shipped since this roadmap:** the `ZoneSystem` + partial-shade infra, all of
-> **Phase A** (hot asphalt, grates, mist, mud, puddles, tinted skybridges),
-> all of **Phase B** (drifting clouds, chasing blimp megashadow, retracting
-> awnings — via `DynamicShadeSystem`), the **accessibility reduce-flashing
-> toggle** (+ `prefers-reduced-motion`), and a live **GitHub Pages deploy**
-> (auto-deploys on push). Remaining: AudioSystem, Phases C–G.
+> **Shipped since this roadmap:** `ZoneSystem` + partial-shade infra; **Phase A**
+> (surface hazards); **Phase B** (clouds, blimp megashadow, retracting awnings);
+> **Phase C** dive + landing-roll/stumble (ledge-hang/wall-run still deferred);
+> **Phase F** package — **dusk level "Last Light", eclipse event, checkpoints
+> (mid-level respawn), difficulty selector, wind tells, ice-drink consumable**;
+> the **reduce-flashing a11y toggle**; and a live **GitHub Pages deploy** (4
+> levels). Remaining: AudioSystem, ledge-hang/wall-run, Phases D, E (most), G,
+> and Phase F's biome/endless modes.
 
 ## 🔧 Cross-cutting infrastructure (build these first — they unblock many items)
 
