@@ -20,7 +20,7 @@ function healthColor(pct) {
  * toast, a gust indicator, and the screen tints — warm sun glare, cool shade,
  * sunglasses dim, dehydration blur, and a heat-haze shimmer.
  */
-export default function HUD({ stats }) {
+export default function HUD({ stats, reduceFlashing }) {
   const {
     health, inSun, exposure, time, sunProgress, sunscreen = 0, levelName, pickup, pickupId,
     hasUmbrella, umbrellaOpen, sheltered, cooling, onZipline,
@@ -53,7 +53,15 @@ export default function HUD({ stats }) {
 
   const burning = (inSun && !sheltered && !cooling) || onHazard;
   const sunTint = burning ? (protectedNow || sunglassesOn ? 0.12 : 0.35 + exposure * 0.5) : 0;
-  const haze = heat * (sunglassesOn ? 0.35 : 1); // glasses cut the shimmer
+  let haze = heat * (sunglassesOn ? 0.35 : 1); // glasses cut the shimmer
+  // Reduce-flashing caps the bright/animated overlays (CSS kills the motion).
+  let flareOpacity = flaring ? weatherIntensity * 0.8 : 0;
+  let dustOpacity = dusting ? weatherIntensity : 0;
+  if (reduceFlashing) {
+    haze = Math.min(haze, 0.2);
+    flareOpacity = flaring ? 0.16 : 0;
+    dustOpacity = Math.min(dustOpacity, 0.4);
+  }
 
   return (
     <>
@@ -63,8 +71,8 @@ export default function HUD({ stats }) {
       <div className="tint blur" style={{ opacity: dehydrated ? 1 : 0 }} />
       <div className="tint glasses" style={{ opacity: sunglassesOn ? 1 : 0 }} />
       <div className="tint rain" style={{ opacity: raining ? weatherIntensity : 0 }} />
-      <div className="tint dust" style={{ opacity: dusting ? weatherIntensity : 0 }} />
-      <div className="tint flare" style={{ opacity: flaring ? weatherIntensity * 0.8 : 0 }} />
+      <div className="tint dust" style={{ opacity: dustOpacity }} />
+      <div className="tint flare" style={{ opacity: flareOpacity }} />
 
       <div className="hud">
         <div className="health-wrap">

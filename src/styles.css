@@ -642,3 +642,43 @@ canvas {
 }
 
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.1); opacity: 1; }
+
+/* ---------------------------------------- reduce flashing & motion (a11y) --- */
+/* Kills the animated/strobing overlays; HUD also caps their opacity in JS. */
+.reduce-fx .tint.haze,
+.reduce-fx .tint.dust,
+.reduce-fx .tint.rain,
+.reduce-fx .weather-banner.warn,
+.reduce-fx .wind-gust,
+.reduce-fx .pickup-toast {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tint.haze,
+  .tint.dust,
+  .tint.rain,
+  .weather-banner.warn,
+  .wind-gust,
+  .pickup-toast {
+    animation: none !important;
+  }
+}
+
+.menu-toggle {
+  pointer-events: auto;
+  cursor: pointer;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+  transition: background 0.12s ease, opacity 0.12s ease;
+}
+
+.menu-toggle:hover { background: rgba(255, 255, 255, 0.12); opacity: 1; }
+.menu-toggle.on { border-color: rgba(120, 200, 255, 0.7); background: rgba(80, 150, 255, 0.18); color: #d6ecff; }

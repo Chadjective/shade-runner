@@ -3,7 +3,7 @@
  * straight to any level. The actual pointer-lock grab happens on the first
  * click inside the game.
  */
-export default function MainMenu({ levels, onStart }) {
+export default function MainMenu({ levels, onStart, reduceFlashing, onToggleReduceFlashing }) {
   return (
     <div className="overlay menu">
       <div className="tagline">Stay cool. Stay alive.</div>
@@ -39,6 +39,14 @@ export default function MainMenu({ levels, onStart }) {
         <div className="key"><span className="keycap">Esc</span>Pause</div>
       </div>
       <div className="hint">Tip: sprint to outrun the heat (but your hat may blow off), walk to keep it on, and pop the umbrella to glide down from the high road.</div>
+
+      <button
+        className={`menu-toggle ${reduceFlashing ? 'on' : ''}`}
+        onClick={onToggleReduceFlashing}
+        aria-pressed={reduceFlashing}
+      >
+        {reduceFlashing ? '☑' : '☐'} Reduce flashing &amp; motion
+      </button>
     </div>
   );
 }

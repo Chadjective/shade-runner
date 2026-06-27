@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Game from './Game.jsx';
 import HUD from './ui/HUD.jsx';
 import MainMenu from './ui/MainMenu.jsx';
@@ -24,6 +24,16 @@ export default function App() {
   const [runId, setRunId] = useState(0);
   const [stats, setStats] = useState(EMPTY_STATS);
   const [result, setResult] = useState({ time: 0, health: 0 });
+  const [reduceFlashing, setReduceFlashing] = useState(() => {
+    try { return localStorage.getItem('sr.reduceFlashing') === '1'; } catch { return false; }
+  });
+
+  // Tame the flashing/shimmer effects (flares, heat-haze, dust) for
+  // photosensitivity. A root class drives the CSS; the choice is persisted.
+  useEffect(() => {
+    document.documentElement.classList.toggle('reduce-fx', reduceFlashing);
+    try { localStorage.setItem('sr.reduceFlashing', reduceFlashing ? '1' : '0'); } catch { /* ignore */ }
+  }, [reduceFlashing]);
 
   const onStats = useCallback((s) => setStats(s), []);
 
@@ -52,11 +62,18 @@ export default function App() {
       {phase === 'playing' && (
         <>
           <Game key={runId} levelIndex={level} onStats={onStats} onDeath={onDeath} onWin={onWin} />
-          <HUD stats={stats} />
+          <HUD stats={stats} reduceFlashing={reduceFlashing} />
         </>
       )}
 
-      {phase === 'menu' && <MainMenu levels={LEVELS} onStart={startLevel} />}
+      {phase === 'menu' && (
+        <MainMenu
+          levels={LEVELS}
+          onStart={startLevel}
+          reduceFlashing={reduceFlashing}
+          onToggleReduceFlashing={() => setReduceFlashing((v) => !v)}
+        />
+      )}
 
       {phase === 'gameover' && (
         <GameOver result={result} levelName={LEVELS[level]?.name} onRestart={() => startLevel(level)} />
