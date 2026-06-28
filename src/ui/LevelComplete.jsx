@@ -20,6 +20,10 @@ export default function LevelComplete({ result, levelName, nextName, onNext, onM
           <div className="stat-num">{Math.ceil(result.health)}%</div>
           <div className="stat-cap">Vitality Left</div>
         </div>
+        <div className="stat">
+          <div className="stat-num">{formatTime(result.best ?? result.time)}</div>
+          <div className="stat-cap">{result.newBest ? '🏁 New Best!' : 'Best'}</div>
+        </div>
       </div>
       <p className="sub">Next up: <strong>{nextName}</strong></p>
       <button className="btn cool" onClick={onNext}>▶ Next Level</button>

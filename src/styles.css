@@ -685,6 +685,60 @@ canvas {
 
 .toggle-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
+/* minimap frame (the WebGL top-down view renders into this corner) */
+.minimap-frame {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  width: 170px;
+  height: 170px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 11;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.minimap-frame span {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  opacity: 0.7;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+@media (max-width: 760px) {
+  .minimap-frame { display: none; }
+}
+
+/* best-time badge on a level card */
+.level-card-best {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8fd6ff;
+  white-space: nowrap;
+}
+
+/* sensitivity slider row */
+.sens-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.sens-row input[type="range"] {
+  pointer-events: auto;
+  width: 180px;
+  accent-color: #6ad7ff;
+}
+
+.sens-val { min-width: 32px; font-weight: 700; }
+
 /* difficulty selector */
 .difficulty { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .difficulty-label { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.7; margin-right: 2px; }

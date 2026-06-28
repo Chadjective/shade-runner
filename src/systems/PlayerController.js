@@ -65,6 +65,7 @@ export default class PlayerController {
     this.onGround = false;
     this.timeSinceGround = 0;
     this.lookEnabled = false;
+    this.sensitivity = 1; // multiplier on mouse look, set by Game from settings
 
     this.half = new THREE.Vector3(PLAYER_RADIUS, FULL_HALF_Y, PLAYER_RADIUS);
 
@@ -622,8 +623,9 @@ export default class PlayerController {
 
   _look(e) {
     if (!this.lookEnabled) return;
-    this.yaw -= e.movementX * MOUSE_SENSITIVITY;
-    this.pitch -= e.movementY * MOUSE_SENSITIVITY;
+    const s = MOUSE_SENSITIVITY * (this.sensitivity ?? 1);
+    this.yaw -= e.movementX * s;
+    this.pitch -= e.movementY * s;
     this.pitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, this.pitch));
   }
 

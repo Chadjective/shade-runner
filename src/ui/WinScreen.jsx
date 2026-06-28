@@ -22,7 +22,7 @@ export default function WinScreen({ result, onReplay, onMenu }) {
       <div className="stat-row">
         <div className="stat">
           <div className="stat-num">{formatTime(result.time)}</div>
-          <div className="stat-cap">Final Time</div>
+          <div className="stat-cap">{result.newBest ? '🏁 New Best!' : 'Final Time'}</div>
         </div>
         <div className="stat">
           <div className="stat-num">{Math.ceil(result.health)}%</div>

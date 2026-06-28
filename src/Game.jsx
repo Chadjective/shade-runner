@@ -16,6 +16,7 @@ import WindTellSystem from './systems/WindTellSystem.js';
 import CrowdSystem from './systems/CrowdSystem.js';
 import DebrisSystem from './systems/DebrisSystem.js';
 import AudioSystem from './systems/AudioSystem.js';
+import GhostSystem from './systems/GhostSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
@@ -55,7 +56,7 @@ const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umb
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -133,8 +134,24 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     });
     const player = new PlayerController(scene, renderer.domElement);
     player.reset(level.startPos, level.startYaw);
+    player.sensitivity = sensitivity;
     player.enable();
     player.snapCamera(camera);
+
+    // Ghost replay: load this level's best-run path (if any) to race against.
+    let savedSamples = null;
+    let prevBest = null;
+    try {
+      const raw = localStorage.getItem(`sr.ghost.${levelIndex}`);
+      if (raw) savedSamples = JSON.parse(raw);
+      const b = parseFloat(localStorage.getItem(`sr.best.${levelIndex}`));
+      if (!Number.isNaN(b)) prevBest = b;
+    } catch { /* ignore */ }
+    const ghost = new GhostSystem(scene, savedSamples);
+
+    // Top-down minimap camera (a real shade map — it sees the ground shadows).
+    const miniCam = new THREE.OrthographicCamera(-22, 22, 22, -22, 1, 200);
+    miniCam.up.set(0, 0, -1); // course direction (-Z) points up on the map
 
     // Compute world matrices once up front so the shade raycaster is accurate
     // from frame zero (and from the headless QA harness, which steps without
@@ -414,6 +431,10 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
 
       elapsed += dt;
 
+      // Ghost replay: record this run, and move the best-run ghost alongside.
+      ghost.record(elapsed, pp);
+      ghost.update(elapsed);
+
       // Checkpoints: light the furthest one passed; it becomes the respawn point.
       let furthest = -1;
       for (let i = 0; i < checkpoints.length; i++) {
@@ -433,7 +454,14 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
         finished = true;
         document.exitPointerLock();
         audio.win();
-        onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak), deaths });
+        const isBest = prevBest === null || elapsed < prevBest;
+        if (isBest) {
+          try {
+            localStorage.setItem(`sr.best.${levelIndex}`, String(elapsed));
+            localStorage.setItem(`sr.ghost.${levelIndex}`, JSON.stringify(ghost.getRecording()));
+          } catch { /* ignore */ }
+        }
+        onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak), deaths, best: isBest ? elapsed : prevBest, newBest: isBest });
       } else if (health.dead) {
         if (lastCheckpoint) {
           // Respawn at the last checkpoint rather than restarting the whole level.
@@ -471,6 +499,24 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       }
 
       renderer.render(scene, camera);
+
+      // Minimap: re-render the scene top-down into a corner viewport. The ground
+      // shadows come along for free, so it doubles as a live shade map.
+      if (minimap) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const ms = Math.min(170, Math.floor(w * 0.24));
+        const pad = 14;
+        const pp = player.getPosition();
+        miniCam.position.set(pp.x, 90, pp.z);
+        miniCam.lookAt(pp.x, 0, pp.z);
+        renderer.setScissorTest(true);
+        renderer.setViewport(w - ms - pad, pad, ms, ms); // bottom-right
+        renderer.setScissor(w - ms - pad, pad, ms, ms);
+        renderer.render(scene, miniCam);
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, w, h);
+      }
     };
     raf = requestAnimationFrame(frame);
 
@@ -537,6 +583,12 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           checkpoint: cpIndex,
           audioState: audio.ctx ? audio.ctx.state : 'none',
           audioMuted: audio.muted,
+          ghostSamples: ghost.samples ? ghost.samples.length : 0,
+          recordingLen: ghost.recording.length,
+          ghostX: ghost.ghost ? +ghost.ghost.position.x.toFixed(1) : null,
+          minimap,
+          sensitivity: player.sensitivity,
+          prevBest,
           crowdPeds: crowd.peds.length,
           crowdParasols: crowd.occluders.length,
           crowdPed0: crowd.peds[0] ? [+crowd.peds[0].group.position.x.toFixed(1), +crowd.peds[0].group.position.z.toFixed(1)] : null,
@@ -615,6 +667,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
   return (
     <div className="game-root">
       <div ref={mountRef} />
+      {minimap && <div className="minimap-frame"><span>MAP</span></div>}
       {paused && (
         <div className="overlay pause">
           <div className="headline">Paused</div>

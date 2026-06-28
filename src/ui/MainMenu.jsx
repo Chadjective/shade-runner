@@ -1,11 +1,27 @@
 import { DIFFICULTIES } from '../utils/constants.js';
 
+function bestTime(i) {
+  try {
+    const b = parseFloat(localStorage.getItem(`sr.best.${i}`));
+    if (Number.isNaN(b)) return null;
+    const m = Math.floor(b / 60);
+    const s = Math.floor(b % 60);
+    const cs = Math.floor((b * 100) % 100);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Start screen. "Start Run" begins at level 1; the level cards let you jump
- * straight to any level. The actual pointer-lock grab happens on the first
- * click inside the game.
+ * straight to any level (and show your best time). Settings (difficulty,
+ * sensitivity, minimap, sound, reduce-flashing) are persisted in App.
  */
-export default function MainMenu({ levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty, muted, onToggleMuted }) {
+export default function MainMenu({
+  levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty,
+  muted, onToggleMuted, sensitivity = 1, onSetSensitivity, minimap = true, onToggleMinimap,
+}) {
   return (
     <div className="overlay menu">
       <div className="tagline">Stay cool. Stay alive.</div>
@@ -33,15 +49,19 @@ export default function MainMenu({ levels, onStart, reduceFlashing, onToggleRedu
       <button className="btn" onClick={() => onStart(0)}>▶ Start Run</button>
 
       <div className="level-cards">
-        {levels.map((lv, i) => (
-          <button key={lv.id} className="level-card" onClick={() => onStart(i)}>
-            <span className="level-card-num">{i + 1}</span>
-            <span className="level-card-body">
-              <span className="level-card-name">{lv.name}</span>
-              <span className="level-card-sub">{lv.subtitle}</span>
-            </span>
-          </button>
-        ))}
+        {levels.map((lv, i) => {
+          const best = bestTime(i);
+          return (
+            <button key={lv.id} className="level-card" onClick={() => onStart(i)}>
+              <span className="level-card-num">{i + 1}</span>
+              <span className="level-card-body">
+                <span className="level-card-name">{lv.name}</span>
+                <span className="level-card-sub">{lv.subtitle}</span>
+              </span>
+              {best && <span className="level-card-best">🏁 {best}</span>}
+            </button>
+          );
+        })}
       </div>
 
       <div className="controls">
@@ -58,20 +78,29 @@ export default function MainMenu({ levels, onStart, reduceFlashing, onToggleRedu
       </div>
       <div className="hint">Tip: sprint to outrun the heat (but your hat may blow off), walk to keep it on, and pop the umbrella to glide down from the high road.</div>
 
+      <div className="sens-row">
+        <label htmlFor="sens">Mouse sensitivity</label>
+        <input
+          id="sens"
+          type="range"
+          min="0.3"
+          max="2.5"
+          step="0.1"
+          value={sensitivity}
+          onChange={(e) => onSetSensitivity(parseFloat(e.target.value))}
+        />
+        <span className="sens-val">{sensitivity.toFixed(1)}×</span>
+      </div>
+
       <div className="toggle-row">
-        <button
-          className={`menu-toggle ${reduceFlashing ? 'on' : ''}`}
-          onClick={onToggleReduceFlashing}
-          aria-pressed={reduceFlashing}
-        >
+        <button className={`menu-toggle ${reduceFlashing ? 'on' : ''}`} onClick={onToggleReduceFlashing} aria-pressed={reduceFlashing}>
           {reduceFlashing ? '☑' : '☐'} Reduce flashing &amp; motion
         </button>
-        <button
-          className={`menu-toggle ${!muted ? 'on' : ''}`}
-          onClick={onToggleMuted}
-          aria-pressed={!muted}
-        >
+        <button className={`menu-toggle ${!muted ? 'on' : ''}`} onClick={onToggleMuted} aria-pressed={!muted}>
           {muted ? '🔇 Sound off' : '🔊 Sound on'}
+        </button>
+        <button className={`menu-toggle ${minimap ? 'on' : ''}`} onClick={onToggleMinimap} aria-pressed={minimap}>
+          {minimap ? '🗺️ Map on' : '🗺️ Map off'}
         </button>
       </div>
     </div>

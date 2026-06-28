@@ -39,6 +39,18 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('sr.muted', muted ? '1' : '0'); } catch { /* ignore */ }
   }, [muted]);
+  const [sensitivity, setSensitivity] = useState(() => {
+    try { return parseFloat(localStorage.getItem('sr.sens')) || 1; } catch { return 1; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sr.sens', String(sensitivity)); } catch { /* ignore */ }
+  }, [sensitivity]);
+  const [minimap, setMinimap] = useState(() => {
+    try { return localStorage.getItem('sr.minimap') !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sr.minimap', minimap ? '1' : '0'); } catch { /* ignore */ }
+  }, [minimap]);
 
   // Tame the flashing/shimmer effects (flares, heat-haze, dust) for
   // photosensitivity. A root class drives the CSS; the choice is persisted.
@@ -73,7 +85,7 @@ export default function App() {
     <>
       {phase === 'playing' && (
         <>
-          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} onStats={onStats} onDeath={onDeath} onWin={onWin} />
+          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} sensitivity={sensitivity} minimap={minimap} onStats={onStats} onDeath={onDeath} onWin={onWin} />
           <HUD stats={stats} reduceFlashing={reduceFlashing} />
         </>
       )}
@@ -88,6 +100,10 @@ export default function App() {
           onSetDifficulty={setDifficulty}
           muted={muted}
           onToggleMuted={() => setMuted((v) => !v)}
+          sensitivity={sensitivity}
+          onSetSensitivity={setSensitivity}
+          minimap={minimap}
+          onToggleMinimap={() => setMinimap((v) => !v)}
         />
       )}
 
