@@ -40,6 +40,12 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('sr.muted', muted ? '1' : '0'); } catch { /* ignore */ }
   }, [muted]);
+  const [music, setMusic] = useState(() => {
+    try { return localStorage.getItem('sr.music') !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sr.music', music ? '1' : '0'); } catch { /* ignore */ }
+  }, [music]);
   const [sensitivity, setSensitivity] = useState(() => {
     try { return parseFloat(localStorage.getItem('sr.sens')) || 1; } catch { return 1; }
   });
@@ -110,7 +116,7 @@ export default function App() {
     <>
       {phase === 'playing' && (
         <>
-          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} sensitivity={sensitivity} minimap={minimap} bloom={bloom} reduceFlashing={reduceFlashing} tips={tips} bodyHex={hexOf(BODY_COLORS, bodyColor)} trailHex={hexOf(TRAIL_COLORS, trailColor)} onStats={onStats} onDeath={onDeath} onWin={onWin} />
+          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} music={music} sensitivity={sensitivity} minimap={minimap} bloom={bloom} reduceFlashing={reduceFlashing} tips={tips} bodyHex={hexOf(BODY_COLORS, bodyColor)} trailHex={hexOf(TRAIL_COLORS, trailColor)} onStats={onStats} onDeath={onDeath} onWin={onWin} />
           <HUD stats={stats} reduceFlashing={reduceFlashing} />
         </>
       )}
@@ -125,6 +131,8 @@ export default function App() {
           onSetDifficulty={setDifficulty}
           muted={muted}
           onToggleMuted={() => setMuted((v) => !v)}
+          music={music}
+          onToggleMusic={() => setMusic((v) => !v)}
           sensitivity={sensitivity}
           onSetSensitivity={setSensitivity}
           minimap={minimap}

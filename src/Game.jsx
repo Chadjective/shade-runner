@@ -61,7 +61,7 @@ const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umb
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, bloom = true, reduceFlashing = false, tips = true, bodyHex = 0x3d8bff, trailHex = 0xbfe6ff, onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, music = true, sensitivity = 1, minimap = true, bloom = true, reduceFlashing = false, tips = true, bodyHex = 0x3d8bff, trailHex = 0xbfe6ff, onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -135,6 +135,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     const weather = new WeatherSystem(level.weather || {});
     const audio = new AudioSystem();
     audio.setMuted(muted);
+    audio.setMusic(music);
     // Surface zones: explicit level.zones + legacy coolZones promoted to cool zones.
     const zones = new ZoneSystem(scene, [
       ...(level.zones || []),

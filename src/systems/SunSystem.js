@@ -13,6 +13,19 @@ import {
 
 const DEG = Math.PI / 180;
 
+function makeGlowTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,248,220,1)');
+  grad.addColorStop(0.3, 'rgba(255,224,160,0.6)');
+  grad.addColorStop(1, 'rgba(255,210,140,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
 /**
  * SunSystem owns the DirectionalLight (the "sun") and moves it across the sky.
  *
@@ -68,6 +81,32 @@ export default class SunSystem {
     scene.add(disc);
     this.disc = disc;
 
+    // Soft additive glow around the sun — reads as a real sun, esp. with bloom.
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: makeGlowTexture(), color: 0xffe6b0, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+    }));
+    glow.scale.set(48, 48, 1);
+    scene.add(glow);
+    this.glow = glow;
+
+    // Gradient sky dome (recentred on the player each frame so it never clips).
+    this._skyTop = new THREE.Color();
+    this._skyHorizon = new THREE.Color();
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+      uniforms: { topColor: { value: new THREE.Color(0x3a6fc0) }, horizonColor: { value: new THREE.Color(0xffd0a0) } },
+      vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 topColor; uniform vec3 horizonColor; varying vec3 vP; void main(){ float h = clamp(normalize(vP).y * 1.3, 0.0, 1.0); gl_FragColor = vec4(mix(horizonColor, topColor, h), 1.0); }',
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(450, 24, 14), skyMat);
+    scene.add(dome);
+    this.dome = dome;
+    this.domeMat = skyMat;
+    this._deepBlue = new THREE.Color(0x244a8f);
+
     // Sky drifts from skyStart -> skyEnd across the day (per-level overridable,
     // e.g. a dusk level fading to orange).
     this._skyDawn = new THREE.Color(opts.skyStart ?? SKY_DAWN);
@@ -114,6 +153,14 @@ export default class SunSystem {
     if (this.scene.fog) {
       this.scene.fog.color.copy(this._sky);
     }
+
+    // Glow tracks the sun; the dome follows the player and tints with the day.
+    this.glow.position.copy(this.light.position);
+    this.dome.position.set(focus.x, 0, focus.z);
+    this._skyHorizon.copy(this._sky);
+    this._skyTop.copy(this._sky).lerp(this._deepBlue, 0.55);
+    this.domeMat.uniforms.horizonColor.value.copy(this._skyHorizon);
+    this.domeMat.uniforms.topColor.value.copy(this._skyTop);
   }
 
   /** 0..1 across the level day; handy for the HUD clock. */

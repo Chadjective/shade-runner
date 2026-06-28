@@ -15,6 +15,9 @@ export default class AudioSystem {
     this.ctx = null;
     this.muted = false;
     this.started = false;
+    this.musicOn = true;
+    this._nextBeat = 0;
+    this._beatIdx = 0;
   }
 
   /** Call from a user gesture (the play/resume click). */
@@ -61,7 +64,53 @@ export default class AudioSystem {
     this.windGain.connect(this.master);
     wind.start();
 
+    // Music bus: a low drone pad + a scheduled pentatonic arpeggio.
+    this.musicGain = ctx.createGain();
+    this.musicGain.gain.value = this.musicOn ? 0.5 : 0;
+    this.musicGain.connect(this.master);
+    this.droneFilter = ctx.createBiquadFilter();
+    this.droneFilter.type = 'lowpass';
+    this.droneFilter.frequency.value = 400;
+    this.droneFilter.connect(this.musicGain);
+    for (const f of [55, 55.4, 82.5]) { // root + detune + fifth
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.value = 0.12;
+      o.connect(g);
+      g.connect(this.droneFilter);
+      o.start();
+    }
+    this._nextBeat = ctx.currentTime + 0.5;
+    this._beatIdx = 0;
+
     this.started = true;
+  }
+
+  setMusic(on) {
+    this.musicOn = on;
+    if (this.musicGain) this.musicGain.gain.value = on && !this.muted ? 0.5 : 0;
+  }
+
+  // A-minor pentatonic across two octaves.
+  _scheduleMusic(intensity) {
+    if (!this.started || this.muted || !this.musicOn) return;
+    const scale = [220, 261.6, 293.7, 329.6, 392, 440, 523.3];
+    const beat = 0.46;
+    const ctx = this.ctx;
+    // Music gets brighter/busier the hotter it is.
+    this.droneFilter.frequency.setTargetAtTime(380 + intensity * 900, ctx.currentTime, 0.4);
+    while (ctx.currentTime + 0.15 >= this._nextBeat) {
+      const i = this._beatIdx;
+      // Arpeggio walk; skip some beats when calm for a sparser feel.
+      if (intensity > 0.25 || i % 2 === 0) {
+        const note = scale[(i * 2) % scale.length] * (i % 4 === 3 ? 2 : 1);
+        this._tone(note, 0.5, { type: 'triangle', gain: 0.05 + intensity * 0.05, delay: this._nextBeat - ctx.currentTime, dest: this.musicGain });
+      }
+      this._beatIdx++;
+      this._nextBeat += beat;
+    }
   }
 
   _makeNoise(seconds) {
@@ -91,10 +140,11 @@ export default class AudioSystem {
     this.sizzleGain.gain.setTargetAtTime(Math.min(0.13, exposure * 0.13), t, 0.25);
     this.windGain.gain.setTargetAtTime(0.012 + Math.min(0.1, windStrength * 0.1), t, 0.25);
     this.windFilter.frequency.setTargetAtTime(420 + windStrength * 900, t, 0.25);
+    this._scheduleMusic(exposure);
   }
 
   // ---- one-shots ----------------------------------------------------------
-  _tone(freq, dur, { type = 'sine', gain = 0.18, to = null, delay = 0 } = {}) {
+  _tone(freq, dur, { type = 'sine', gain = 0.18, to = null, delay = 0, dest = null } = {}) {
     if (!this.started || this.muted) return;
     const ctx = this.ctx;
     const start = ctx.currentTime + delay;
@@ -107,7 +157,7 @@ export default class AudioSystem {
     g.gain.exponentialRampToValueAtTime(gain, start + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
     o.connect(g);
-    g.connect(this.master);
+    g.connect(dest || this.master);
     o.start(start);
     o.stop(start + dur + 0.02);
   }

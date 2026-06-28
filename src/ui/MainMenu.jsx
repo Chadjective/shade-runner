@@ -68,6 +68,7 @@ export default function MainMenu({
   muted, onToggleMuted, sensitivity = 1, onSetSensitivity, minimap = true, onToggleMinimap,
   bloom = true, onToggleBloom, tips = true, onToggleTips,
   bodyColor = 'azure', onSetBodyColor, trailColor = 'cyan', onSetTrailColor,
+  music = true, onToggleMusic,
 }) {
   const stats = lifetimeStats();
   return (
@@ -147,6 +148,9 @@ export default function MainMenu({
         </button>
         <button className={`menu-toggle ${!muted ? 'on' : ''}`} onClick={onToggleMuted} aria-pressed={!muted}>
           {muted ? '🔇 Sound off' : '🔊 Sound on'}
+        </button>
+        <button className={`menu-toggle ${music ? 'on' : ''}`} onClick={onToggleMusic} aria-pressed={music}>
+          {music ? '🎵 Music on' : '🎵 Music off'}
         </button>
         <button className={`menu-toggle ${minimap ? 'on' : ''}`} onClick={onToggleMinimap} aria-pressed={minimap}>
           {minimap ? '🗺️ Map on' : '🗺️ Map off'}
