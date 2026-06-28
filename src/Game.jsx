@@ -22,7 +22,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { LEVELS } from './level/index.js';
+import { LEVELS, medalFor, MEDAL_RANK } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
   AMBIENT_GROUND_COLOR,
@@ -281,9 +281,20 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     let lastCheckpoint = null;
     let deaths = 0;
     let lastFootstepId = 0;
+    let didBurn = false; // for the "no-burn" challenge ribbon
     let minZ = 0; // furthest the player has reached (for endless distance)
     let lastTip = '';
     const tutorial = tips ? (level.tutorial || []) : [];
+
+    // Lifetime stats accumulator (runs / total distance / deaths).
+    const recordRun = (distance, died) => {
+      try {
+        const g = (k) => parseFloat(localStorage.getItem(k)) || 0;
+        localStorage.setItem('sr.stat.runs', String(g('sr.stat.runs') + 1));
+        localStorage.setItem('sr.stat.dist', String(Math.round(g('sr.stat.dist') + distance)));
+        if (died) localStorage.setItem('sr.stat.deaths', String(g('sr.stat.deaths') + 1));
+      } catch { /* ignore */ }
+    };
     let lastFlareWarn = false;
     const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
@@ -430,6 +441,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       else if (raining) envMult = RAIN_DAMAGE_MULT;
       else if (flaring) envMult = FLARE_DAMAGE_MULT;
       const hydrationMult = player.hasSleeves ? SLEEVES_HYDRATION_MULT : 1; // sleeves make you sweat
+      if (inSun) didBurn = true; // any sun exposure forfeits the no-burn ribbon
       health.update(dt, inSun, gearMult * envMult * diff.damage * (inSun ? exposure01 : 1), hydrationMult);
       // Wet towel dries out over time (faster in the sun); re-wet at fountains below.
       if (player.hasTowel) {
@@ -510,7 +522,19 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
             localStorage.setItem(`sr.ghost.${levelIndex}`, JSON.stringify(ghost.getRecording()));
           } catch { /* ignore */ }
         }
-        onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak), deaths, best: isBest ? elapsed : prevBest, newBest: isBest });
+        // Medal + challenge ribbons.
+        const distance = Math.floor(-minZ);
+        const medal = medalFor(levelIndex, { time: elapsed, distance });
+        const ribbons = { noBurn: !didBurn, pale: health.health >= 80, noDeaths: deaths === 0 };
+        try {
+          const prevM = localStorage.getItem(`sr.medal.${levelIndex}`);
+          if (medal && (!prevM || MEDAL_RANK[medal] > (MEDAL_RANK[prevM] || 0))) {
+            localStorage.setItem(`sr.medal.${levelIndex}`, medal);
+          }
+          for (const r of Object.keys(ribbons)) if (ribbons[r]) localStorage.setItem(`sr.ribbon.${levelIndex}.${r}`, '1');
+        } catch { /* ignore */ }
+        recordRun(distance, false);
+        onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak), deaths, best: isBest ? elapsed : prevBest, newBest: isBest, medal, ribbons, distance });
       } else if (health.dead) {
         if (lastCheckpoint) {
           // Respawn at the last checkpoint rather than restarting the whole level.
@@ -531,14 +555,19 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           audio.death();
           const dist = Math.floor(-minZ);
           let bestDist = dist;
+          let medal = null;
           if (level.endless) {
             try {
               const pd = parseFloat(localStorage.getItem(`sr.dist.${levelIndex}`));
               bestDist = !Number.isNaN(pd) ? Math.max(pd, dist) : dist;
               localStorage.setItem(`sr.dist.${levelIndex}`, String(bestDist));
+              medal = medalFor(levelIndex, { distance: dist, time: elapsed });
+              const prevM = localStorage.getItem(`sr.medal.${levelIndex}`);
+              if (medal && (!prevM || MEDAL_RANK[medal] > (MEDAL_RANK[prevM] || 0))) localStorage.setItem(`sr.medal.${levelIndex}`, medal);
             } catch { /* ignore */ }
           }
-          onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak), deaths, distance: dist, bestDistance: bestDist, endless: !!level.endless });
+          recordRun(dist, true);
+          onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak), deaths, distance: dist, bestDistance: bestDist, endless: !!level.endless, medal });
         }
       }
       report();

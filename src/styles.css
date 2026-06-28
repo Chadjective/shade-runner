@@ -685,6 +685,31 @@ canvas {
 
 .toggle-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
+/* medals + challenge ribbons on end screens */
+.awards { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 2px 0; }
+.medal {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 6px 22px;
+  border-radius: 999px;
+  border: 2px solid;
+}
+.medal.gold { color: #ffe27a; border-color: rgba(255, 210, 90, 0.8); background: rgba(255, 200, 60, 0.16); }
+.medal.silver { color: #dfe7ef; border-color: rgba(210, 225, 240, 0.8); background: rgba(200, 215, 235, 0.14); }
+.medal.bronze { color: #e8a87a; border-color: rgba(210, 140, 90, 0.8); background: rgba(200, 120, 70, 0.16); }
+.ribbons { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.ribbon {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(120, 200, 255, 0.16);
+  border: 1px solid rgba(120, 200, 255, 0.5);
+  color: #d6ecff;
+}
+
 /* onboarding tip banner */
 .tutorial-tip {
   position: absolute;

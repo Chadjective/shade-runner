@@ -1,3 +1,5 @@
+import Awards from './Awards.jsx';
+
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
@@ -25,6 +27,7 @@ export default function LevelComplete({ result, levelName, nextName, onNext, onM
           <div className="stat-cap">{result.newBest ? '🏁 New Best!' : 'Best'}</div>
         </div>
       </div>
+      <Awards medal={result.medal} ribbons={result.ribbons} />
       <p className="sub">Next up: <strong>{nextName}</strong></p>
       <button className="btn cool" onClick={onNext}>▶ Next Level</button>
       <button className="btn-ghost" onClick={onMenu}>Main Menu</button>

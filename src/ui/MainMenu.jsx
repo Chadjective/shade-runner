@@ -22,6 +22,11 @@ function bestDistance(i) {
   }
 }
 
+const MEDAL_EMOJI = { gold: '🥇', silver: '🥈', bronze: '🥉' };
+function bestMedal(i) {
+  try { return MEDAL_EMOJI[localStorage.getItem(`sr.medal.${i}`)] || null; } catch { return null; }
+}
+
 /**
  * Start screen. "Start Run" begins at level 1; the level cards let you jump
  * straight to any level (and show your best time). Settings (difficulty,
@@ -61,9 +66,10 @@ export default function MainMenu({
       <div className="level-cards">
         {levels.map((lv, i) => {
           const badge = lv.endless ? bestDistance(i) : bestTime(i);
+          const medal = bestMedal(i);
           return (
             <button key={lv.id} className="level-card" onClick={() => onStart(i)}>
-              <span className="level-card-num">{i + 1}</span>
+              <span className="level-card-num">{medal || i + 1}</span>
               <span className="level-card-body">
                 <span className="level-card-name">{lv.name}</span>
                 <span className="level-card-sub">{lv.subtitle}</span>

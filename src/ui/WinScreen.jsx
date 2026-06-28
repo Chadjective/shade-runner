@@ -1,3 +1,5 @@
+import Awards from './Awards.jsx';
+
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
@@ -41,6 +43,7 @@ export default function WinScreen({ result, onReplay, onMenu }) {
           <div className="stat-cap">Rank</div>
         </div>
       </div>
+      <Awards medal={result.medal} ribbons={result.ribbons} />
       <button className="btn cool" onClick={onReplay}>↻ Run It Again</button>
       <button className="btn-ghost" onClick={onMenu}>Main Menu</button>
     </div>
