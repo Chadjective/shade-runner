@@ -8,6 +8,9 @@ const PALETTE = {
   hat: { body: 0xe8d27a, glow: 0x8a6a18 },
   sunglasses: { body: 0x2a2f3a, glow: 0x101218 },
   ice: { body: 0x9fe8ff, glow: 0x4ab0e0 },
+  towel: { body: 0x4ad0e0, glow: 0x1a8090 },
+  sleeves: { body: 0x6a5a9a, glow: 0x2a1a5a },
+  sneakers: { body: 0xff5aa0, glow: 0x902050 },
 };
 
 /**
@@ -68,6 +71,27 @@ export default class ItemSystem {
       }
       const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.05), bodyMat);
       group.add(bridge);
+    } else if (type === 'towel') {
+      const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.08), bodyMat);
+      group.add(cloth);
+    } else if (type === 'sleeves') {
+      const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.34, 0.24), bodyMat);
+      group.add(shirt);
+      for (const dx of [-0.28, 0.28]) {
+        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.3, 8), bodyMat);
+        sleeve.rotation.z = Math.PI / 2;
+        sleeve.position.set(dx, 0.05, 0);
+        group.add(sleeve);
+      }
+    } else if (type === 'sneakers') {
+      for (const dx of [-0.14, 0.14]) {
+        const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.4), bodyMat);
+        shoe.position.set(dx, 0, 0.05);
+        group.add(shoe);
+        const sole = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.42), white);
+        sole.position.set(dx, -0.1, 0.05);
+        group.add(sole);
+      }
     } else {
       const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.5, 14), bodyMat);
       group.add(bottle);

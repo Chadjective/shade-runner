@@ -27,7 +27,7 @@ export default function HUD({ stats, reduceFlashing }) {
     hasHat, hatStability = 1, hasSunglasses, sunglassesOn, sprinting, stamina = 1,
     hydration = MAX_HYDRATION, dehydrated, heat = 0, windStrength = 0, coolMult = 1, coolStreak = 0,
     raining, flaring, dusting, eclipsing, flareWarn, weatherIntensity = 0, onHazard, exposure01 = 1,
-    coolReserve = 0,
+    coolReserve = 0, hasTowel, towelWet = 0, hasSleeves, hasSneakers,
   } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
   const hydraPct = Math.max(0, (hydration / MAX_HYDRATION) * 100);
@@ -132,6 +132,14 @@ export default function HUD({ stats, reduceFlashing }) {
           )}
           {hasUmbrella && <div className="buff"><span>☂️ Umbrella · {umbrellaOpen ? 'Open' : 'Closed'} (E)</span></div>}
           {hasSunglasses && <div className="buff"><span>🕶️ Shades · {sunglassesOn ? 'On' : 'Off'} (G)</span></div>}
+          {hasTowel && (
+            <div className="buff">
+              <span>🧣 Towel</span>
+              <div className="buff-track"><div className="buff-fill hydra" style={{ width: `${towelWet * 100}%` }} /></div>
+            </div>
+          )}
+          {hasSleeves && <div className="buff"><span>🧥 Sleeves · {'On (R)'}</span></div>}
+          {hasSneakers && <div className="buff"><span>👟 Sneakers</span></div>}
         </div>
 
         <div className={`exposure ${expClass}`}>{expText}</div>

@@ -42,6 +42,7 @@ import {
   ROLL_WINDOW,
   STUMBLE_DURATION,
   STUMBLE_SPEED_MULT,
+  SNEAKERS_SPEED_MULT,
 } from '../utils/constants.js';
 
 const FULL_HALF_Y = PLAYER_HEIGHT / 2;
@@ -82,6 +83,11 @@ export default class PlayerController {
     this.hatStability = 1;
     this.hasSunglasses = false;
     this.sunglassesOn = false;
+    this.hasTowel = false;
+    this.towelWet = 0; // 0..1; dries out, re-wet at fountains
+    this.hasSleeves = false; // strong sun cover, but you sweat faster
+    this._ownsSleeves = false;
+    this.hasSneakers = false; // faster + better grip
     this._fallingHat = null;
 
     // Traversal verbs (Phase C).
@@ -189,6 +195,29 @@ export default class PlayerController {
     this.armR = makeLimb(0.15, 0.6); this.armR.position.set(0.33, 0.42, 0); rig.add(this.armR);
     this.legL = makeLimb(0.18, 0.82); this.legL.position.set(-0.15, -0.08, 0); rig.add(this.legL);
     this.legR = makeLimb(0.18, 0.82); this.legR.position.set(0.15, -0.08, 0); rig.add(this.legR);
+
+    // --- Phase E gear visuals (hidden until picked up) ---
+    const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x6a5a9a, roughness: 0.8 });
+    this.sleeves = [this.armL, this.armR].map((arm) => {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.42, 0.2), sleeveMat);
+      s.position.y = -0.22;
+      s.visible = false;
+      arm.add(s);
+      return s;
+    });
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xff5aa0, roughness: 0.6 });
+    this.shoes = [this.legL, this.legR].map((leg) => {
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.34), shoeMat);
+      sh.position.set(0, -0.82, 0.07);
+      sh.visible = false;
+      leg.add(sh);
+      return sh;
+    });
+    this.towelMat = new THREE.MeshStandardMaterial({ color: 0x4ad0e0, roughness: 0.85 });
+    this.towel = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.34, 0.07), this.towelMat);
+    this.towel.position.set(0, 0.34, -0.19);
+    this.towel.visible = false;
+    rig.add(this.towel);
 
     // Umbrella (hidden until picked up), carried at the right shoulder.
     const umb = new THREE.Group();
@@ -386,6 +415,14 @@ export default class PlayerController {
     this.hatStability = 1;
     this.hasSunglasses = false;
     this.sunglassesOn = false;
+    this.hasTowel = false;
+    this.towelWet = 0;
+    this.hasSleeves = false;
+    this._ownsSleeves = false;
+    this.hasSneakers = false;
+    if (this.towel) this.towel.visible = false;
+    if (this.sleeves) this.sleeves.forEach((s) => { s.visible = false; });
+    if (this.shoes) this.shoes.forEach((s) => { s.visible = false; });
     this.windStrength = 0;
     this.heatDrift = 0;
     this.traction = 1;
@@ -488,6 +525,29 @@ export default class PlayerController {
     if (this.sunglasses) this.sunglasses.visible = this.sunglassesOn;
   }
 
+  giveTowel() {
+    this.hasTowel = true;
+    this.towelWet = 1;
+    if (this.towel) this.towel.visible = true;
+  }
+
+  giveSleeves() {
+    this._ownsSleeves = true;
+    this.hasSleeves = true;
+    if (this.sleeves) this.sleeves.forEach((s) => { s.visible = true; });
+  }
+
+  _toggleSleeves() {
+    if (!this._ownsSleeves) return;
+    this.hasSleeves = !this.hasSleeves; // shed them in shade to stop overheating
+    if (this.sleeves) this.sleeves.forEach((s) => { s.visible = this.hasSleeves; });
+  }
+
+  giveSneakers() {
+    this.hasSneakers = true;
+    if (this.shoes) this.shoes.forEach((s) => { s.visible = true; });
+  }
+
   _startSlide() {
     if (this.sliding || !this.onGround || this.slideCooldown > 0) return;
     if (Math.hypot(this.velocity.x, this.velocity.z) < 1) return;
@@ -549,6 +609,7 @@ export default class PlayerController {
     if (down && !was) {
       if (code === 'KeyE' && this.hasUmbrella) this._toggleUmbrella();
       if (code === 'KeyG' && this.hasSunglasses) this._toggleSunglasses();
+      if (code === 'KeyR' && this._ownsSleeves) this._toggleSleeves();
       if (code === 'KeyF') this._startDive();
       if (code === 'KeyC') {
         this.crouching = true;
@@ -623,6 +684,7 @@ export default class PlayerController {
     if (this.umbrellaOpen) spd *= UMBRELLA_SPEED_MULT;
     if (this.rolling) spd *= ROLL_SPEED_MULT; // a clean roll keeps momentum
     if (this.stumbling) spd *= STUMBLE_SPEED_MULT; // botched landing slows you
+    if (this.hasSneakers) spd *= SNEAKERS_SPEED_MULT; // a touch faster on foot
     spd *= this.zoneSpeedMult; // mud / sand drag
 
     // A dive is a committed lunge — keep its velocity, no steering accel.
@@ -791,7 +853,7 @@ export default class PlayerController {
 }
 
 const ALLOWED = new Set([
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE', 'KeyG', 'KeyC', 'KeyF',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE', 'KeyG', 'KeyC', 'KeyF', 'KeyR',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight',
 ]);
 

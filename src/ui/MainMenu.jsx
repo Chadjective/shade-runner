@@ -53,6 +53,7 @@ export default function MainMenu({ levels, onStart, reduceFlashing, onToggleRedu
         <div className="key"><span className="keycap">F</span>Dive</div>
         <div className="key"><span className="keycap">E</span>Umbrella</div>
         <div className="key"><span className="keycap">G</span>Shades</div>
+        <div className="key"><span className="keycap">R</span>Sleeves</div>
         <div className="key"><span className="keycap">Esc</span>Pause</div>
       </div>
       <div className="hint">Tip: sprint to outrun the heat (but your hat may blow off), walk to keep it on, and pop the umbrella to glide down from the high road.</div>

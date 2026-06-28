@@ -193,7 +193,10 @@ export default function buildLevel3() {
     { type: 'water', x: 3, y: 1.0, z: -88 }, // market
     { type: 'sunscreen', x: -7, y: 3.9, z: -138 }, // high-road walkway
     { type: 'water', x: 7, y: 1.0, z: -138 }, // low-road tunnel
+    { type: 'sneakers', x: -2, y: 1.0, z: -10 }, // alley: gear up for the long haul
+    { type: 'sleeves', x: 7, y: 1.0, z: -120 }, // tunnel exit, before the open stretch
     { type: 'umbrella', x: 0, y: 1.0, z: -203 }, // grab cover before the gauntlet
+    { type: 'towel', x: 6, y: 1.0, z: -188 }, // by the park fountain (re-wets here)
     { type: 'sunscreen', x: 0, y: 1.0, z: -272 }, // construction stretch
   ];
 

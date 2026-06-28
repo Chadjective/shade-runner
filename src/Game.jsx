@@ -38,9 +38,14 @@ import {
   UPDRAFT_POWER,
   ECLIPSE_DAMAGE_MULT,
   DIFFICULTIES,
+  TOWEL_DAMAGE_MULT,
+  TOWEL_DRY_RATE,
+  SLEEVES_DAMAGE_MULT,
+  SLEEVES_HYDRATION_MULT,
+  SNEAKERS_MIN_TRACTION,
 } from './utils/constants.js';
 
-const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!', hat: 'Hat!', sunglasses: 'Sunglasses!', ice: '🧊 Ice Drink' };
+const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umbrella!', hat: 'Hat!', sunglasses: 'Sunglasses!', ice: '🧊 Ice Drink', towel: '🧣 Wet Towel', sleeves: '🧥 Long Sleeves (R)', sneakers: '👟 Sneakers' };
 
 /**
  * Game owns the imperative Three.js world and the per-frame game loop. React
@@ -253,6 +258,10 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           hatStability: player.hatStability,
           hasSunglasses: player.hasSunglasses,
           sunglassesOn: player.sunglassesOn,
+          hasTowel: player.hasTowel,
+          towelWet: player.towelWet,
+          hasSleeves: player.hasSleeves,
+          hasSneakers: player.hasSneakers,
           sprinting: player.isSprinting,
           walking: player.isWalking,
           stamina: player.stamina,
@@ -312,7 +321,10 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       const ppPre = player.getPosition();
       const zf = zones.query(ppPre);
       player.zoneSpeedMult = zf.speedMult;
-      player.traction = Math.min(raining ? RAIN_TRACTION : 1, zf.wet ? zf.traction : 1);
+      player.traction = Math.max(
+        Math.min(raining ? RAIN_TRACTION : 1, zf.wet ? zf.traction : 1),
+        player.hasSneakers ? SNEAKERS_MIN_TRACTION : 0
+      ); // sneakers give grip on wet ground
 
       // Updraft vents launch you up the column (set before update so it carries).
       for (let i = 0; i < updrafts.length; i++) {
@@ -343,13 +355,21 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       // Gear softens the sun: sunglasses (when worn) and a hat stack with sunscreen.
       const gearMult =
         (player.hasSunglasses && player.sunglassesOn ? SUNGLASSES_DAMAGE_MULT : 1) *
-        (player.hasHat ? HAT_DAMAGE_MULT : 1);
+        (player.hasHat ? HAT_DAMAGE_MULT : 1) *
+        (player.hasTowel && player.towelWet > 0 ? TOWEL_DAMAGE_MULT : 1) *
+        (player.hasSleeves ? SLEEVES_DAMAGE_MULT : 1);
       // Weather scales the sun: rain/eclipse cool it down, a flare spikes it.
       let envMult = 1;
       if (eclipsing) envMult = ECLIPSE_DAMAGE_MULT;
       else if (raining) envMult = RAIN_DAMAGE_MULT;
       else if (flaring) envMult = FLARE_DAMAGE_MULT;
-      health.update(dt, inSun, gearMult * envMult * diff.damage * (inSun ? exposure01 : 1));
+      const hydrationMult = player.hasSleeves ? SLEEVES_HYDRATION_MULT : 1; // sleeves make you sweat
+      health.update(dt, inSun, gearMult * envMult * diff.damage * (inSun ? exposure01 : 1), hydrationMult);
+      // Wet towel dries out over time (faster in the sun); re-wet at fountains below.
+      if (player.hasTowel) {
+        player.towelWet = Math.max(0, player.towelWet - TOWEL_DRY_RATE * (inSun ? 2 : 1) * dt);
+        if (player.towelMat) player.towelMat.color.setHex(player.towelWet > 0.05 ? 0x2a9aad : 0xa8c4c8);
+      }
       if (raining) health.hydrate(RAIN_HYDRATE_RATE * dt);
       if (dusting) health.hydration = Math.max(0, health.hydration - DUST_HYDRATION_DRAIN * dt);
 
@@ -357,6 +377,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       if (zf.cool && !health.dead) {
         health.health = Math.min(MAX_HEALTH, health.health + COOL_RECOVERY_RATE * dt);
         health.hydrate(COOL_HYDRATE_RATE * dt);
+        if (player.hasTowel) player.towelWet = 1; // fountains re-wet the towel
       }
       if (zf.hydrate > 0) health.hydrate(zf.hydrate * dt);
       const hazardDps = zf.hazardFlat + zf.hazardSun * sun.getProgress();
@@ -372,6 +393,9 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
         if (type === 'umbrella') player.giveUmbrella();
         else if (type === 'hat') player.giveHat();
         else if (type === 'sunglasses') player.giveSunglasses();
+        else if (type === 'towel') player.giveTowel();
+        else if (type === 'sleeves') player.giveSleeves();
+        else if (type === 'sneakers') player.giveSneakers();
         else health.applyPickup(type);
         pickupLabel = ITEM_LABEL[type] || type;
         pickupId++;
@@ -471,6 +495,10 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
         giveHat: () => player.giveHat(),
         giveSunglasses: () => player.giveSunglasses(),
         toggleSunglasses: () => player._toggleSunglasses(),
+        giveTowel: () => player.giveTowel(),
+        giveSleeves: () => player.giveSleeves(),
+        toggleSleeves: () => player._toggleSleeves(),
+        giveSneakers: () => player.giveSneakers(),
         setCrouch: (v) => { player.crouching = v; },
         slide: () => player._startSlide(),
         dive: () => player._startDive(),
@@ -486,6 +514,10 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           sunscreen: +health.sunscreen.toFixed(1),
           umbrella: player.hasUmbrella,
           umbrellaOpen: player.umbrellaOpen,
+          towel: player.hasTowel,
+          towelWet: +player.towelWet.toFixed(2),
+          sleeves: player.hasSleeves,
+          sneakers: player.hasSneakers,
           sliding: player.sliding,
           onZipline: player.onZipline,
           cooling: lastCooling,
@@ -590,7 +622,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           <button className="btn" onClick={() => startRef.current && startRef.current()}>
             Resume
           </button>
-          <div className="hint">WASD move · Mouse look · Space jump · Shift sprint · C crouch/slide/roll · F dive · E umbrella · G shades · Esc pause</div>
+          <div className="hint">WASD move · Mouse look · Space jump · Shift sprint · C crouch/slide/roll · F dive · E umbrella · G shades · R sleeves · Esc pause</div>
         </div>
       )}
     </div>

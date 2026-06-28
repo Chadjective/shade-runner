@@ -42,13 +42,13 @@ export default class HealthSystem {
    * @param {boolean} inSun whether the player is currently exposed
    * @param {number} gearMult extra sun-damage multiplier from gear (hat/glasses)
    */
-  update(dt, inSun, gearMult = 1) {
+  update(dt, inSun, gearMult = 1, hydrationMult = 1) {
     this.inSun = inSun;
     if (this.sunscreen > 0) this.sunscreen = Math.max(0, this.sunscreen - dt);
     if (this.coolReserve > 0) this.coolReserve = Math.max(0, this.coolReserve - ICE_MELT_RATE * dt);
 
     if (inSun) {
-      this.hydration = Math.max(0, this.hydration - HYDRATION_DRAIN * dt);
+      this.hydration = Math.max(0, this.hydration - HYDRATION_DRAIN * hydrationMult * dt);
       const dehydrated = this.hydration < HYDRATION_LOW;
       const mult =
         (this.sunscreen > 0 ? SUNSCREEN_DAMAGE_MULT : 1) *
