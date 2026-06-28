@@ -275,6 +275,16 @@ export default function buildLevel1() {
     ],
     // Tumbleweeds blow across the open boulevard.
     debris: { count: 4, xSpan: 15, zMin: -122, zMax: -158 },
+    // Onboarding tips, surfaced as you reach each z (only with tips enabled).
+    tutorial: [
+      { z: 0, text: 'Move with W A S D (or the joystick). Move the mouse / drag to look around.' },
+      { z: -15, text: '☀️ Direct sunlight drains your health — keep to the shade.' },
+      { z: -24, text: 'Open plaza ahead — no cover. Cross sunlit gaps quickly.' },
+      { z: -55, text: 'Hold Shift to sprint across the open (careful — a hat can blow off).' },
+      { z: -92, text: 'Grab gear! Pick up the umbrella, then press E to open it as mobile shade.' },
+      { z: -118, text: 'Sun gauntlet: grab the sunscreen and ride the trucks’ moving shadows.' },
+      { z: -165, text: '🟩 Almost there — reach the covered pavilion to finish.' },
+    ],
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

@@ -685,6 +685,26 @@ canvas {
 
 .toggle-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
+/* onboarding tip banner */
+.tutorial-tip {
+  position: absolute;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80vw;
+  padding: 9px 20px;
+  border-radius: 12px;
+  background: rgba(10, 16, 40, 0.74);
+  border: 1px solid rgba(120, 200, 255, 0.5);
+  color: #e6f1ff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  backdrop-filter: blur(4px);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
 /* ------------------------------------------------------- touch controls --- */
 .touch-ui {
   position: fixed;

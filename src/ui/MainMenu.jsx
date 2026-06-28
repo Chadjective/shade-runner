@@ -30,7 +30,7 @@ function bestDistance(i) {
 export default function MainMenu({
   levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty,
   muted, onToggleMuted, sensitivity = 1, onSetSensitivity, minimap = true, onToggleMinimap,
-  bloom = true, onToggleBloom,
+  bloom = true, onToggleBloom, tips = true, onToggleTips,
 }) {
   return (
     <div className="overlay menu">
@@ -114,6 +114,9 @@ export default function MainMenu({
         </button>
         <button className={`menu-toggle ${bloom ? 'on' : ''}`} onClick={onToggleBloom} aria-pressed={bloom}>
           {bloom ? '✨ Bloom on' : '✨ Bloom off'}
+        </button>
+        <button className={`menu-toggle ${tips ? 'on' : ''}`} onClick={onToggleTips} aria-pressed={tips}>
+          {tips ? '💡 Tips on' : '💡 Tips off'}
         </button>
       </div>
     </div>

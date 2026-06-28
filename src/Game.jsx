@@ -61,7 +61,7 @@ const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umb
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, bloom = true, reduceFlashing = false, onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, bloom = true, reduceFlashing = false, tips = true, onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -282,6 +282,8 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     let deaths = 0;
     let lastFootstepId = 0;
     let minZ = 0; // furthest the player has reached (for endless distance)
+    let lastTip = '';
+    const tutorial = tips ? (level.tutorial || []) : [];
     let lastFlareWarn = false;
     const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
@@ -344,6 +346,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           onHazard: lastHazard,
           exposure01: lastExposure01,
           coolReserve: health.coolReserve,
+          tip: lastTip,
           deaths,
         });
       }
@@ -408,6 +411,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
 
       const pp = player.getPosition();
       if (pp.z < minZ) minZ = pp.z;
+      if (tutorial.length) { let t = ''; for (const s of tutorial) if (s.z >= pp.z) t = s.text; lastTip = t; }
       // Partial shade (e.g. tinted skybridges) scales 0..1 instead of on/off.
       const exposure01 = shade.sunExposure(pp, sun.toSun);
       lastRawInSun = exposure01 > 0.05;
@@ -647,6 +651,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           checkpoint: cpIndex,
           audioState: audio.ctx ? audio.ctx.state : 'none',
           audioMuted: audio.muted,
+          tip: lastTip,
           ghostSamples: ghost.samples ? ghost.samples.length : 0,
           recordingLen: ghost.recording.length,
           ghostX: ghost.ghost ? +ghost.ghost.position.x.toFixed(1) : null,

@@ -27,7 +27,7 @@ export default function HUD({ stats, reduceFlashing }) {
     hasHat, hatStability = 1, hasSunglasses, sunglassesOn, sprinting, stamina = 1,
     hydration = MAX_HYDRATION, dehydrated, heat = 0, windStrength = 0, coolMult = 1, coolStreak = 0,
     raining, flaring, dusting, eclipsing, flareWarn, weatherIntensity = 0, onHazard, exposure01 = 1,
-    coolReserve = 0, hasTowel, towelWet = 0, hasSleeves, hasSneakers,
+    coolReserve = 0, hasTowel, towelWet = 0, hasSleeves, hasSneakers, tip,
   } = stats;
   const pct = Math.max(0, (health / MAX_HEALTH) * 100);
   const hydraPct = Math.max(0, (hydration / MAX_HYDRATION) * 100);
@@ -168,6 +168,7 @@ export default function HUD({ stats, reduceFlashing }) {
         </div>
 
         {toast && <div className="pickup-toast">{toast}</div>}
+        {tip && <div className="tutorial-tip">{tip}</div>}
       </div>
     </>
   );
