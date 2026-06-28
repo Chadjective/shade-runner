@@ -33,9 +33,12 @@ substantial subsystem or collision-heavy work.
 > wind tells); **Phase E** (wet towel, long sleeves w/ overheat trade-off,
 > sneakers, ice drink); **Phase G so far** (shade minimap, ghost replay + local
 > leaderboard/best-times, mouse-sensitivity slider — on top of the earlier
-> audio/a11y/checkpoints/difficulty); and a live **GitHub Pages deploy** (4
-> levels). Remaining: ledge-hang/wall-run, the rest of Phase G (tutorial,
-> mobile/touch, post-processing polish), and Phase F's biome/endless modes.
+> audio/a11y/checkpoints/difficulty); **post-processing bloom** (toggle, with a
+> defensive fallback); **ledge-grab + wall-run** (with wall-jump); a **desert
+> biome** ("The Furnace", L5) and an **endless mode** ("The Long Run", L6,
+> procedural + furthest-distance leaderboard); and a live **GitHub Pages
+> deploy** (now 6 levels). Remaining: **tutorial/onboarding** and **mobile/touch
+> controls** — essentially the last roadmap items.
 
 ## 🔧 Cross-cutting infrastructure (build these first — they unblock many items)
 
