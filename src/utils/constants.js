@@ -144,6 +144,16 @@ export const ROLL_WINDOW = 0.2; // grace around landing to press crouch and roll
 export const STUMBLE_DURATION = 0.5;
 export const STUMBLE_SPEED_MULT = 0.35; // botched landing: you lurch and slow
 
+// --- Ledge grab + wall-run (deferred traversal) ----------------------------
+export const LEDGE_GRAB_REACH = 0.4; // how close to a wall face you grab a ledge
+export const LEDGE_MIN_HEIGHT = 1.2; // ledge top must be this far above your feet
+export const LEDGE_GRAB_COOLDOWN = 0.5; // after climb/drop, before you can re-grab
+export const WALLRUN_DURATION = 0.95; // max seconds clinging to a wall
+export const WALLRUN_GRAVITY_MULT = 0.16; // near-weightless while wall-running
+export const WALLRUN_MIN_SPEED = 5; // need this much horizontal speed to start
+export const WALLRUN_JUMP = 8.5; // push off the wall on a wall-jump
+export const WALLRUN_COOLDOWN = 0.5;
+
 // --- Surface zones (Phase A) -----------------------------------------------
 export const HOT_ZONE_DPS = 14; // contact damage/sec on hot grates/coals/asphalt
 export const MUD_SPEED_MULT = 0.5; // movement speed in sand/mud

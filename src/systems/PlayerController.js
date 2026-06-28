@@ -43,6 +43,14 @@ import {
   STUMBLE_DURATION,
   STUMBLE_SPEED_MULT,
   SNEAKERS_SPEED_MULT,
+  LEDGE_GRAB_REACH,
+  LEDGE_MIN_HEIGHT,
+  LEDGE_GRAB_COOLDOWN,
+  WALLRUN_DURATION,
+  WALLRUN_GRAVITY_MULT,
+  WALLRUN_MIN_SPEED,
+  WALLRUN_JUMP,
+  WALLRUN_COOLDOWN,
 } from '../utils/constants.js';
 
 const FULL_HALF_Y = PLAYER_HEIGHT / 2;
@@ -100,6 +108,16 @@ export default class PlayerController {
     this.stumbleTime = 0;
     this._prevOnGround = false;
     this._timeSinceRollKey = 99;
+
+    // Ledge grab + wall-run.
+    this.hanging = false;
+    this._grabCd = 0;
+    this._ledge = null;
+    this.wallRunning = false;
+    this.wallRunTime = 0;
+    this._wallCd = 0;
+    this._wallNx = 0;
+    this._wallNz = 0;
 
     // External forces, set by Game each step.
     this.windVec = new THREE.Vector3();
@@ -261,6 +279,37 @@ export default class PlayerController {
       const wob = 0.04 + (speed > HAT_SHAKE_SPEED ? 0.35 : 0) + (1 - this.hatStability) * 0.45;
       this.hat.rotation.z = Math.sin(this._animTime * 22) * wob;
       this.hat.rotation.x = Math.cos(this._animTime * 19) * wob * 0.6;
+    }
+
+    // Ease the wall-run lean back out once it's over.
+    if (!this.wallRunning && this.rig && this.rig.rotation.z !== 0) {
+      this.rig.rotation.z = lerp(this.rig.rotation.z, 0, 1 - Math.pow(0.001, dt));
+      if (Math.abs(this.rig.rotation.z) < 0.002) this.rig.rotation.z = 0;
+    }
+
+    if (this.hanging) {
+      // Hands up gripping the ledge, legs hanging.
+      const k = 1 - Math.pow(0.0006, dt);
+      this.armL.rotation.x = lerp(this.armL.rotation.x, -2.9, k);
+      this.armR.rotation.x = lerp(this.armR.rotation.x, -2.9, k);
+      this.legL.rotation.x = lerp(this.legL.rotation.x, 0.2, k);
+      this.legR.rotation.x = lerp(this.legR.rotation.x, -0.1, k);
+      this.rig.rotation.x = lerp(this.rig.rotation.x, 0, k);
+      this.rig.position.y = lerp(this.rig.position.y, 0, k);
+      return;
+    }
+
+    if (this.wallRunning) {
+      // Lean toward the wall, legs pumping.
+      const k = 1 - Math.pow(0.0008, dt);
+      this._animPhase += dt * 14;
+      const s = Math.sin(this._animPhase);
+      this.legL.rotation.x = s * 0.8;
+      this.legR.rotation.x = -s * 0.8;
+      this.armL.rotation.x = -s * 0.6;
+      this.armR.rotation.x = s * 0.6;
+      this.rig.rotation.z = lerp(this.rig.rotation.z, this._wallNx * 0.4, k);
+      return;
     }
 
     if (this.onZipline) {
@@ -436,6 +485,12 @@ export default class PlayerController {
     this.stumbleTime = 0;
     this._prevOnGround = false;
     this._timeSinceRollKey = 99;
+    this.hanging = false;
+    this._grabCd = 0;
+    this._ledge = null;
+    this.wallRunning = false;
+    this.wallRunTime = 0;
+    this._wallCd = 0;
     this.windVec.set(0, 0, 0);
     if (this.umbrella) this.umbrella.visible = false;
     if (this.hat) { this.hat.visible = false; this.hat.rotation.set(0, 0, 0); }
@@ -465,8 +520,10 @@ export default class PlayerController {
     this.rolling = false;
     this.stumbling = false;
     this.onZipline = false;
+    this.hanging = false;
+    this.wallRunning = false;
     this.half.set(PLAYER_RADIUS, FULL_HALF_Y, PLAYER_RADIUS);
-    if (this.rig) { this.rig.rotation.x = 0; this.rig.position.y = 0; }
+    if (this.rig) { this.rig.rotation.x = 0; this.rig.rotation.z = 0; this.rig.position.y = 0; }
   }
 
   // ---- gear ---------------------------------------------------------------
@@ -652,6 +709,27 @@ export default class PlayerController {
       return;
     }
 
+    if (this._grabCd > 0) this._grabCd -= dt;
+    if (this._wallCd > 0) this._wallCd -= dt;
+
+    // Hanging from a ledge: hold still; Space climbs up, S/crouch drops.
+    if (this.hanging) {
+      this.velocity.set(0, 0, 0);
+      if (this.keys.Space && this._ledge) {
+        this.mesh.position.set(this._ledge.x, this._ledge.y, this._ledge.z);
+        this.onGround = true;
+        this.jumpedThisFrame = true;
+        this.hanging = false;
+        this._grabCd = LEDGE_GRAB_COOLDOWN;
+      } else if (this.keys.KeyS || this.keys.ArrowDown || this.keys.KeyC) {
+        this.hanging = false;
+        this._grabCd = LEDGE_GRAB_COOLDOWN;
+      }
+      this._updateCamera(camera);
+      this.animate(dt);
+      return;
+    }
+
     if (this.sliding) {
       this.slideTime -= dt;
       if (this.slideTime <= 0) this._endSlide();
@@ -667,6 +745,7 @@ export default class PlayerController {
       if (this.rollTime <= 0) { this.rolling = false; if (this.rig) { this.rig.rotation.x = 0; this.rig.position.y = 0; } }
     }
     if (this.stumbling) { this.stumbleTime -= dt; if (this.stumbleTime <= 0) this.stumbling = false; }
+    if (this.wallRunning) { this.wallRunTime -= dt; if (this.wallRunTime <= 0 || this.onGround) this.wallRunning = false; }
 
     const wish = this._wishDirection();
     const moving = wish.lengthSq() > 1e-4;
@@ -720,6 +799,16 @@ export default class PlayerController {
       this.velocity.z += -Math.sin(this.yaw) * d * dt;
     }
 
+    // Wall-jump: launch up and away from the wall while wall-running.
+    if (this.wallRunning && this.keys.Space) {
+      this.velocity.y = WALLRUN_JUMP;
+      this.velocity.x += this._wallNx * WALLRUN_JUMP * 0.6;
+      this.velocity.z += this._wallNz * WALLRUN_JUMP * 0.6;
+      this.wallRunning = false;
+      this._wallCd = WALLRUN_COOLDOWN;
+      this.jumpedThisFrame = true;
+    }
+
     this.timeSinceGround = this.onGround ? 0 : this.timeSinceGround + dt;
     if (this.keys.Space && this.timeSinceGround <= COYOTE_TIME) {
       if (this.sliding) this._endSlide();
@@ -729,10 +818,12 @@ export default class PlayerController {
       this.jumpedThisFrame = true;
     }
 
-    // Gravity — an open umbrella turns a fall into a slow glide.
+    // Gravity — an open umbrella turns a fall into a slow glide; wall-running
+    // is near-weightless.
     let g = GRAVITY;
     const gliding = !this.onGround && this.umbrellaOpen;
     if (gliding) g *= UMBRELLA_GLIDE_GRAVITY_MULT;
+    if (this.wallRunning) g *= WALLRUN_GRAVITY_MULT;
     this.velocity.y -= g * dt;
     if (gliding && this.velocity.y < -UMBRELLA_GLIDE_MAX_FALL) this.velocity.y = -UMBRELLA_GLIDE_MAX_FALL;
 
@@ -762,6 +853,35 @@ export default class PlayerController {
     }
     this._prevOnGround = this.onGround;
 
+    // Ledge grab + wall-run — only while airborne and pressed against a wall.
+    if (!this.onGround && !this.diving) {
+      const wall = this._touchWall(p, colliders);
+      if (wall) {
+        const headY = p.y + this.half.y;
+        const feetY = p.y - this.half.y;
+        const grabbable = this._grabCd <= 0 && this.velocity.y < 0.5 &&
+          Math.abs(wall.top - headY) < 0.55 && wall.top - feetY >= LEDGE_MIN_HEIGHT;
+        if (grabbable) {
+          this.hanging = true;
+          this.velocity.set(0, 0, 0);
+          p.y = wall.top - this.half.y; // hands at the ledge edge
+          this._ledge = {
+            x: p.x - wall.nx * (this.half.x + 0.35),
+            y: wall.top + this.half.y + 0.02,
+            z: p.z - wall.nz * (this.half.z + 0.35),
+          };
+        } else if (!this.wallRunning && this._wallCd <= 0 && moving &&
+          Math.hypot(this.velocity.x, this.velocity.z) > WALLRUN_MIN_SPEED) {
+          this.wallRunning = true;
+          this.wallRunTime = WALLRUN_DURATION;
+          this._wallNx = wall.nx;
+          this._wallNz = wall.nz;
+        }
+      } else if (this.wallRunning) {
+        this.wallRunning = false; // peeled off the wall
+      }
+    }
+
     // Hat physics: too fast for too long and it shakes loose.
     if (this.hasHat) {
       const sp = Math.hypot(this.velocity.x, this.velocity.z);
@@ -780,6 +900,30 @@ export default class PlayerController {
 
     this._updateCamera(camera);
     this.animate(dt);
+  }
+
+  /**
+   * If the player is flush against a vertical face of some collider, return its
+   * outward normal (nx,nz) and that collider's top y; else null. Used to start a
+   * ledge grab or a wall-run.
+   */
+  _touchWall(p, colliders) {
+    const H = this.half;
+    for (let i = 0; i < colliders.length; i++) {
+      const b = colliders[i];
+      if (p.y + H.y < b.min.y + 0.15 || p.y - H.y > b.max.y - 0.15) continue; // vertical overlap
+      const withinZ = p.z + H.z > b.min.z && p.z - H.z < b.max.z;
+      const withinX = p.x + H.x > b.min.x && p.x - H.x < b.max.x;
+      if (withinZ) {
+        if (p.x > b.max.x && (p.x - H.x) - b.max.x <= LEDGE_GRAB_REACH) return { nx: 1, nz: 0, top: b.max.y };
+        if (p.x < b.min.x && b.min.x - (p.x + H.x) <= LEDGE_GRAB_REACH) return { nx: -1, nz: 0, top: b.max.y };
+      }
+      if (withinX) {
+        if (p.z > b.max.z && (p.z - H.z) - b.max.z <= LEDGE_GRAB_REACH) return { nx: 0, nz: 1, top: b.max.y };
+        if (p.z < b.min.z && b.min.z - (p.z + H.z) <= LEDGE_GRAB_REACH) return { nx: 0, nz: -1, top: b.max.y };
+      }
+    }
+    return null;
   }
 
   _resolve(p, colliders) {

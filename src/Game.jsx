@@ -17,6 +17,10 @@ import CrowdSystem from './systems/CrowdSystem.js';
 import DebrisSystem from './systems/DebrisSystem.js';
 import AudioSystem from './systems/AudioSystem.js';
 import GhostSystem from './systems/GhostSystem.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
@@ -56,7 +60,7 @@ const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umb
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, bloom = true, reduceFlashing = false, onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -85,6 +89,17 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     // Cool fill so shaded areas read as cool-blue rather than pitch black.
     const hemi = new THREE.HemisphereLight(AMBIENT_SKY_COLOR, AMBIENT_GROUND_COLOR, 1.05);
     scene.add(hemi);
+
+    // ---- post-processing: subtle bloom on the bright sun / emissive glows ----
+    // OutputPass does tone-mapping + sRGB, so RenderPass stays linear (no double).
+    let composer = null;
+    if (bloom) {
+      composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloomStrength = reduceFlashing ? 0.22 : 0.4;
+      composer.addPass(new UnrealBloomPass(new THREE.Vector2(width, height), bloomStrength, 0.5, 0.85));
+      composer.addPass(new OutputPass());
+    }
 
     // ---- systems ----
     const levelDef = LEVELS[levelIndex] || LEVELS[0];
@@ -216,6 +231,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      if (composer) composer.setSize(w, h);
     };
     window.addEventListener('resize', onResize);
 
@@ -238,6 +254,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     let lastCheckpoint = null;
     let deaths = 0;
     let lastFootstepId = 0;
+    let minZ = 0; // furthest the player has reached (for endless distance)
     let lastFlareWarn = false;
     const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
@@ -363,6 +380,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       lastFlareWarn = fw;
 
       const pp = player.getPosition();
+      if (pp.z < minZ) minZ = pp.z;
       // Partial shade (e.g. tinted skybridges) scales 0..1 instead of on/off.
       const exposure01 = shade.sunExposure(pp, sun.toSun);
       lastRawInSun = exposure01 > 0.05;
@@ -480,7 +498,16 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           finished = true;
           document.exitPointerLock();
           audio.death();
-          onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak), deaths });
+          const dist = Math.floor(-minZ);
+          let bestDist = dist;
+          if (level.endless) {
+            try {
+              const pd = parseFloat(localStorage.getItem(`sr.dist.${levelIndex}`));
+              bestDist = !Number.isNaN(pd) ? Math.max(pd, dist) : dist;
+              localStorage.setItem(`sr.dist.${levelIndex}`, String(bestDist));
+            } catch { /* ignore */ }
+          }
+          onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak), deaths, distance: dist, bestDistance: bestDist, endless: !!level.endless });
         }
       }
       report();
@@ -498,7 +525,12 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
         sun.update(0, player.getPosition());
       }
 
-      renderer.render(scene, camera);
+      if (composer) {
+        try { composer.render(); }
+        catch (_) { composer.dispose(); composer = null; renderer.render(scene, camera); }
+      } else {
+        renderer.render(scene, camera);
+      }
 
       // Minimap: re-render the scene top-down into a corner viewport. The ground
       // shadows come along for free, so it doubles as a live shade map.
@@ -566,6 +598,8 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           sneakers: player.hasSneakers,
           sliding: player.sliding,
           onZipline: player.onZipline,
+          hanging: player.hanging,
+          wallRunning: player.wallRunning,
           cooling: lastCooling,
           hasHat: player.hasHat,
           hatStability: +player.hatStability.toFixed(2),
@@ -653,6 +687,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           mats.forEach((m) => m.dispose());
         }
       });
+      if (composer) composer.dispose();
       renderer.dispose();
       // dispose() frees GL resources but not the context itself; force it so a
       // restart (which mounts a fresh renderer) can't exhaust the browser's

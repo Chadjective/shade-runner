@@ -20,6 +20,12 @@ export default function GameOver({ result, levelName, onRestart }) {
           <div className="stat-num">{result.streak ?? 0}s</div>
           <div className="stat-cap">Best Cool Streak</div>
         </div>
+        {result.endless && (
+          <div className="stat">
+            <div className="stat-num">{result.distance ?? 0}m</div>
+            <div className="stat-cap">{result.distance >= (result.bestDistance ?? 0) ? '🏁 Furthest!' : 'Distance'}</div>
+          </div>
+        )}
       </div>
       <button className="btn" onClick={onRestart}>↻ Try Again</button>
       <div className="hint">Grab the sunscreen, duck under cover, and don't sprint blind.</div>

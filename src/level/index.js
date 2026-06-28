@@ -2,6 +2,8 @@ import buildLevel1 from './Level1.js';
 import buildLevel2 from './Level2.js';
 import buildLevel3 from './Level3.js';
 import buildLevel4 from './Level4.js';
+import buildLevel5 from './Level5.js';
+import buildLevel6 from './Level6.js';
 
 /**
  * Ordered list of levels. Each entry exposes a `build()` that returns the
@@ -14,6 +16,8 @@ export const LEVELS = [
   { id: 1, name: 'The Interchange', subtitle: 'High road or low road — sun and speed, or shade and patience.', build: buildLevel2 },
   { id: 2, name: 'The Long Mile', subtitle: 'Everything at once, twice as far. Survive the whole crosstown run.', build: buildLevel3 },
   { id: 3, name: 'Last Light', subtitle: 'Dusk run — the sun sets as you go, in long raking shadows.', build: buildLevel4 },
+  { id: 4, name: 'The Furnace', subtitle: 'Desert. Shade is rare, sand is slow, the sun merciless.', build: buildLevel5 },
+  { id: 5, name: 'The Long Run', subtitle: 'Endless — procedurally generated. How far can you get?', endless: true, build: buildLevel6 },
 ];
 
 export const LEVEL_COUNT = LEVELS.length;

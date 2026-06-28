@@ -13,6 +13,15 @@ function bestTime(i) {
   }
 }
 
+function bestDistance(i) {
+  try {
+    const d = parseFloat(localStorage.getItem(`sr.dist.${i}`));
+    return Number.isNaN(d) ? null : `${Math.floor(d)}m`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Start screen. "Start Run" begins at level 1; the level cards let you jump
  * straight to any level (and show your best time). Settings (difficulty,
@@ -21,6 +30,7 @@ function bestTime(i) {
 export default function MainMenu({
   levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty,
   muted, onToggleMuted, sensitivity = 1, onSetSensitivity, minimap = true, onToggleMinimap,
+  bloom = true, onToggleBloom,
 }) {
   return (
     <div className="overlay menu">
@@ -50,7 +60,7 @@ export default function MainMenu({
 
       <div className="level-cards">
         {levels.map((lv, i) => {
-          const best = bestTime(i);
+          const badge = lv.endless ? bestDistance(i) : bestTime(i);
           return (
             <button key={lv.id} className="level-card" onClick={() => onStart(i)}>
               <span className="level-card-num">{i + 1}</span>
@@ -58,7 +68,7 @@ export default function MainMenu({
                 <span className="level-card-name">{lv.name}</span>
                 <span className="level-card-sub">{lv.subtitle}</span>
               </span>
-              {best && <span className="level-card-best">🏁 {best}</span>}
+              {badge && <span className="level-card-best">🏁 {badge}</span>}
             </button>
           );
         })}
@@ -101,6 +111,9 @@ export default function MainMenu({
         </button>
         <button className={`menu-toggle ${minimap ? 'on' : ''}`} onClick={onToggleMinimap} aria-pressed={minimap}>
           {minimap ? '🗺️ Map on' : '🗺️ Map off'}
+        </button>
+        <button className={`menu-toggle ${bloom ? 'on' : ''}`} onClick={onToggleBloom} aria-pressed={bloom}>
+          {bloom ? '✨ Bloom on' : '✨ Bloom off'}
         </button>
       </div>
     </div>

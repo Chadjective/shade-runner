@@ -51,6 +51,12 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('sr.minimap', minimap ? '1' : '0'); } catch { /* ignore */ }
   }, [minimap]);
+  const [bloom, setBloom] = useState(() => {
+    try { return localStorage.getItem('sr.bloom') !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sr.bloom', bloom ? '1' : '0'); } catch { /* ignore */ }
+  }, [bloom]);
 
   // Tame the flashing/shimmer effects (flares, heat-haze, dust) for
   // photosensitivity. A root class drives the CSS; the choice is persisted.
@@ -85,7 +91,7 @@ export default function App() {
     <>
       {phase === 'playing' && (
         <>
-          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} sensitivity={sensitivity} minimap={minimap} onStats={onStats} onDeath={onDeath} onWin={onWin} />
+          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} sensitivity={sensitivity} minimap={minimap} bloom={bloom} reduceFlashing={reduceFlashing} onStats={onStats} onDeath={onDeath} onWin={onWin} />
           <HUD stats={stats} reduceFlashing={reduceFlashing} />
         </>
       )}
@@ -104,6 +110,8 @@ export default function App() {
           onSetSensitivity={setSensitivity}
           minimap={minimap}
           onToggleMinimap={() => setMinimap((v) => !v)}
+          bloom={bloom}
+          onToggleBloom={() => setBloom((v) => !v)}
         />
       )}
 
