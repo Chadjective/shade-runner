@@ -5,7 +5,7 @@ import { DIFFICULTIES } from '../utils/constants.js';
  * straight to any level. The actual pointer-lock grab happens on the first
  * click inside the game.
  */
-export default function MainMenu({ levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty }) {
+export default function MainMenu({ levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty, muted, onToggleMuted }) {
   return (
     <div className="overlay menu">
       <div className="tagline">Stay cool. Stay alive.</div>
@@ -57,13 +57,22 @@ export default function MainMenu({ levels, onStart, reduceFlashing, onToggleRedu
       </div>
       <div className="hint">Tip: sprint to outrun the heat (but your hat may blow off), walk to keep it on, and pop the umbrella to glide down from the high road.</div>
 
-      <button
-        className={`menu-toggle ${reduceFlashing ? 'on' : ''}`}
-        onClick={onToggleReduceFlashing}
-        aria-pressed={reduceFlashing}
-      >
-        {reduceFlashing ? '☑' : '☐'} Reduce flashing &amp; motion
-      </button>
+      <div className="toggle-row">
+        <button
+          className={`menu-toggle ${reduceFlashing ? 'on' : ''}`}
+          onClick={onToggleReduceFlashing}
+          aria-pressed={reduceFlashing}
+        >
+          {reduceFlashing ? '☑' : '☐'} Reduce flashing &amp; motion
+        </button>
+        <button
+          className={`menu-toggle ${!muted ? 'on' : ''}`}
+          onClick={onToggleMuted}
+          aria-pressed={!muted}
+        >
+          {muted ? '🔇 Sound off' : '🔊 Sound on'}
+        </button>
+      </div>
     </div>
   );
 }

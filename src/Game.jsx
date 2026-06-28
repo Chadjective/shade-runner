@@ -13,6 +13,7 @@ import WeatherSystem from './systems/WeatherSystem.js';
 import ZoneSystem from './systems/ZoneSystem.js';
 import DynamicShadeSystem from './systems/DynamicShadeSystem.js';
 import WindTellSystem from './systems/WindTellSystem.js';
+import AudioSystem from './systems/AudioSystem.js';
 import { LEVELS } from './level/index.js';
 import {
   AMBIENT_SKY_COLOR,
@@ -47,7 +48,7 @@ const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umb
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -98,6 +99,8 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
     const wind = new WindSystem(level.wind);
     const windTells = new WindTellSystem(scene, level.windTells || []);
     const weather = new WeatherSystem(level.weather || {});
+    const audio = new AudioSystem();
+    audio.setMuted(muted);
     // Surface zones: explicit level.zones + legacy coolZones promoted to cool zones.
     const zones = new ZoneSystem(scene, [
       ...(level.zones || []),
@@ -153,6 +156,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
     const startRun = () => {
       setRunning(true);
       requestLock();
+      audio.resume(); // create/resume the AudioContext from this user gesture
     };
     startRef.current = startRun;
 
@@ -204,6 +208,8 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
     let cpIndex = -1;
     let lastCheckpoint = null;
     let deaths = 0;
+    let lastFootstepId = 0;
+    let lastFlareWarn = false;
     const reported = { health: -1, time: -1, inSun: null, prog: -1, pickup: -1 };
 
     const report = () => {
@@ -310,6 +316,14 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
       }
       player.update(dt, level.colliders, camera);
 
+      // --- audio: ambience + movement one-shots ---
+      audio.ambience(health.exposure, player.windStrength);
+      if (player.footstepId !== lastFootstepId) { lastFootstepId = player.footstepId; audio.footstep(); }
+      if (player.jumpedThisFrame) audio.jump();
+      const fw = weather.warningFor('flare');
+      if (fw && !lastFlareWarn) audio.flareWarn();
+      lastFlareWarn = fw;
+
       const pp = player.getPosition();
       // Partial shade (e.g. tinted skybridges) scales 0..1 instead of on/off.
       const exposure01 = shade.sunExposure(pp, sun.toSun);
@@ -352,6 +366,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
         else health.applyPickup(type);
         pickupLabel = ITEM_LABEL[type] || type;
         pickupId++;
+        audio.pickup();
       }
       sweat.update(dt, player, health, raining); // rain washes the sweat away
 
@@ -378,11 +393,13 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
         cpMarkers[furthest].material.opacity = 0.9;
         pickupLabel = '🚩 Checkpoint';
         pickupId++;
+        audio.checkpoint();
       }
 
       if (level.finishBox.containsPoint(pp)) {
         finished = true;
         document.exitPointerLock();
+        audio.win();
         onWin({ time: elapsed, health: health.health, score: Math.floor(score), streak: Math.floor(bestStreak), deaths });
       } else if (health.dead) {
         if (lastCheckpoint) {
@@ -397,9 +414,11 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
           coolStreak = 0;
           pickupLabel = '↻ Respawned';
           pickupId++;
+          audio.respawn();
         } else {
           finished = true;
           document.exitPointerLock();
+          audio.death();
           onDeath({ time: elapsed, score: Math.floor(score), streak: Math.floor(bestStreak), deaths });
         }
       }
@@ -449,6 +468,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
         rollKey: () => { player._timeSinceRollKey = 0; }, // arm a landing roll (like tapping C)
         pickup: (type) => health.applyPickup(type), // water / sunscreen / ice
         kill: () => { health.health = 0; health.dead = true; }, // force death (test respawn)
+        resumeAudio: () => audio.resume(),
         state: () => ({
           pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
           health: +health.health.toFixed(1),
@@ -474,6 +494,8 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
           coolReserve: +health.coolReserve.toFixed(1),
           deaths,
           checkpoint: cpIndex,
+          audioState: audio.ctx ? audio.ctx.state : 'none',
+          audioMuted: audio.muted,
           windStrength: +wind.strength.toFixed(2),
           heatDrift: +player.heatDrift.toFixed(2),
           traction: player.traction,
@@ -524,6 +546,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', onStats, o
       document.removeEventListener('pointerlockchange', onLockChange);
       el.removeEventListener('click', onCanvasClick);
       player.disable();
+      audio.dispose();
       if (document.pointerLockElement === el) document.exitPointerLock();
       scene.traverse((obj) => {
         if (obj.geometry) obj.geometry.dispose();

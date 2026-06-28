@@ -683,6 +683,8 @@ canvas {
 .menu-toggle:hover { background: rgba(255, 255, 255, 0.12); opacity: 1; }
 .menu-toggle.on { border-color: rgba(120, 200, 255, 0.7); background: rgba(80, 150, 255, 0.18); color: #d6ecff; }
 
+.toggle-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
 /* difficulty selector */
 .difficulty { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .difficulty-label { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.7; margin-right: 2px; }

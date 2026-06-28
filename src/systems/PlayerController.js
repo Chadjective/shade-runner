@@ -582,6 +582,7 @@ export default class PlayerController {
   }
 
   update(dt, colliders, camera) {
+    this.jumpedThisFrame = false;
     if (this.onZipline) {
       this._updateCamera(camera);
       this.animate(dt);
@@ -661,6 +662,7 @@ export default class PlayerController {
       this.velocity.y = JUMP_FORCE;
       this.onGround = false;
       this.timeSinceGround = COYOTE_TIME + 1;
+      this.jumpedThisFrame = true;
     }
 
     // Gravity — an open umbrella turns a fall into a slow glide.
