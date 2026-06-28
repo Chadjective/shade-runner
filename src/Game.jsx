@@ -13,6 +13,8 @@ import WeatherSystem from './systems/WeatherSystem.js';
 import ZoneSystem from './systems/ZoneSystem.js';
 import DynamicShadeSystem from './systems/DynamicShadeSystem.js';
 import WindTellSystem from './systems/WindTellSystem.js';
+import CrowdSystem from './systems/CrowdSystem.js';
+import DebrisSystem from './systems/DebrisSystem.js';
 import AudioSystem from './systems/AudioSystem.js';
 import { LEVELS } from './level/index.js';
 import {
@@ -91,7 +93,12 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     level.colliders.push(...traffic.colliders);
     // Drifting clouds / blimp / retracting awnings — moving + partial overhead shade.
     const dynamicShade = new DynamicShadeSystem(scene, level.dynamicShade || {});
-    const shade = new ShadeDetector([...level.occluders, ...traffic.occluders, ...dynamicShade.occluders]);
+    // Living world: pedestrians (slim moving colliders; parasols are mobile shade)
+    // and wind-blown tumbleweeds that shove you.
+    const crowd = new CrowdSystem(scene, level.crowd || []);
+    level.colliders.push(...crowd.colliders);
+    const debris = new DebrisSystem(scene, level.debris || null);
+    const shade = new ShadeDetector([...level.occluders, ...traffic.occluders, ...dynamicShade.occluders, ...crowd.occluders]);
     const health = new HealthSystem();
     const items = new ItemSystem(scene, level.items || []);
     const sweat = new SweatSystem(scene);
@@ -281,6 +288,8 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       zip.update(dt, player); // may set player.onZipline before player.update
       wind.update(dt);
       weather.update(dt);
+      crowd.update(dt);
+      debris.update(dt, wind, player); // shoves the player; do it before player.update integrates
       const raining = weather.is('rain');
       const flaring = weather.is('flare');
       const dusting = weather.is('dust');
@@ -496,6 +505,11 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           checkpoint: cpIndex,
           audioState: audio.ctx ? audio.ctx.state : 'none',
           audioMuted: audio.muted,
+          crowdPeds: crowd.peds.length,
+          crowdParasols: crowd.occluders.length,
+          crowdPed0: crowd.peds[0] ? [+crowd.peds[0].group.position.x.toFixed(1), +crowd.peds[0].group.position.z.toFixed(1)] : null,
+          debrisCount: debris.pieces.length,
+          debris0: debris.pieces[0] ? [+debris.pieces[0].x.toFixed(1), +debris.pieces[0].z.toFixed(1)] : null,
           windStrength: +wind.strength.toFixed(2),
           heatDrift: +player.heatDrift.toFixed(2),
           traction: player.traction,

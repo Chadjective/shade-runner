@@ -262,6 +262,16 @@ export default function buildLevel1() {
         { x: 0, z: -84, w: 8, d: 3.5, y: 3.3, period: 9, phase: 4.5 },
       ],
     },
+    // Plaza crowd — weave through, tuck behind a parasol for shade.
+    crowd: [
+      { x: -3, z: -32, axis: 'x', range: 5, speed: 0.5, parasol: true },
+      { x: 4, z: -38, axis: 'z', range: 4, speed: 0.7 },
+      { x: 0, z: -46, axis: 'x', range: 6, speed: 0.6, parasol: true },
+      { x: -5, z: -50, axis: 'z', range: 3, speed: 0.5 },
+      { x: 6, z: -28, axis: 'x', range: 4, speed: 0.8 },
+    ],
+    // Tumbleweeds blow across the open boulevard.
+    debris: { count: 4, xSpan: 15, zMin: -122, zMax: -158 },
     startPos: new THREE.Vector3(0, 0.9, 0),
     startYaw: 0,
     finishBox,

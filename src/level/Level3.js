@@ -240,5 +240,7 @@ export default function buildLevel3() {
       clouds: { count: 4, y: 32, shade: 0.6, speed: 5, spanX: 90, zFrom: -10, zTo: -290, size: 12 },
       blimp: { y: 34, shade: 0.85, speed: 4, xFrom: -16, xTo: 16, z: -230 },
     },
+    // Gusty gauntlet — tumbleweeds blow across.
+    debris: { count: 7, xSpan: 16, zMin: -120, zMax: -255 },
   };
 }

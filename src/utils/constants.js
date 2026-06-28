@@ -151,6 +151,17 @@ export const MIST_TRACTION = 0.45; // grip on slick mist patches (skid)
 export const PUDDLE_HYDRATE_RATE = 16; // hydration/sec from standing in a puddle
 export const SKYBRIDGE_SHADE = 0.5; // tinted glass blocks half the sun
 
+// --- Living world (Phase D) ------------------------------------------------
+export const DEBRIS_KNOCK = 5; // shove the player gets from a rolling tumbleweed
+
+// --- Gear & consumables (Phase E) ------------------------------------------
+export const TOWEL_DAMAGE_MULT = 0.6; // sun damage while the wet towel is damp
+export const TOWEL_DRY_RATE = 0.05; // wetness/sec lost (doubled while in the sun)
+export const SLEEVES_DAMAGE_MULT = 0.4; // long sleeves: strong sun protection...
+export const SLEEVES_HYDRATION_MULT = 2; // ...but you sweat (dehydrate) faster
+export const SNEAKERS_SPEED_MULT = 1.12; // a touch faster on foot
+export const SNEAKERS_MIN_TRACTION = 0.65; // and better grip on wet ground
+
 // --- World palette (warm sun / cool shade) ---------------------------------
 export const SUN_LIGHT_COLOR = 0xfff1d6; // warm sunlight
 export const AMBIENT_SKY_COLOR = 0x9fc6ff; // cool sky fill
