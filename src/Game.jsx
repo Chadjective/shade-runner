@@ -17,6 +17,7 @@ import CrowdSystem from './systems/CrowdSystem.js';
 import DebrisSystem from './systems/DebrisSystem.js';
 import AudioSystem from './systems/AudioSystem.js';
 import GhostSystem from './systems/GhostSystem.js';
+import TouchControls from './ui/TouchControls.jsx';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -64,6 +65,11 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
+  const ctrlRef = useRef(null); // touch control fns, set in the effect
+  const [isTouch] = useState(
+    () => typeof window !== 'undefined' &&
+      (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window || navigator.maxTouchPoints > 0)
+  );
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -72,7 +78,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
 
     // ---- renderer / scene / camera ----
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2)); // lighter on mobile
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -203,6 +209,27 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       audio.resume(); // create/resume the AudioContext from this user gesture
     };
     startRef.current = startRun;
+
+    // Touch control surface → imperative player.
+    ctrlRef.current = {
+      move: (f, r) => player.setMoveAxis(f, r),
+      look: (dx, dy) => player.lookDelta(dx, dy),
+      jump: (down) => { player.keys.Space = down; },
+      sprint: (down) => { player.keys.ShiftLeft = down; },
+      crouch: (down) => {
+        if (down) {
+          player.crouching = true;
+          player._timeSinceRollKey = 0;
+          if (player.onGround && Math.hypot(player.velocity.x, player.velocity.z) > 5) player._startSlide();
+        } else {
+          player.crouching = false;
+        }
+      },
+      umbrella: () => { if (player.hasUmbrella) player._toggleUmbrella(); },
+      shades: () => { if (player.hasSunglasses) player._toggleSunglasses(); },
+      dive: () => player._startDive(),
+      pause: () => setRunning(false),
+    };
 
     const onLockChange = () => {
       const locked = document.pointerLockElement === el;
@@ -584,6 +611,9 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
         pickup: (type) => health.applyPickup(type), // water / sunscreen / ice
         kill: () => { health.health = 0; health.dead = true; }, // force death (test respawn)
         resumeAudio: () => audio.resume(),
+        moveAxis: (f, r) => player.setMoveAxis(f, r),
+        lookDelta: (dx, dy) => player.lookDelta(dx, dy),
+        yaw: () => +player.yaw.toFixed(3),
         state: () => ({
           pos: player.getPosition().toArray().map((n) => +n.toFixed(2)),
           health: +health.health.toFixed(1),
@@ -713,6 +743,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
           <div className="hint">WASD move · Mouse look · Space jump · Shift sprint · C crouch/slide/roll · F dive · E umbrella · G shades · R sleeves · Esc pause</div>
         </div>
       )}
+      {isTouch && !paused && <TouchControls ctrl={ctrlRef} />}
     </div>
   );
 }

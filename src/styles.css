@@ -685,6 +685,84 @@ canvas {
 
 .toggle-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
+/* ------------------------------------------------------- touch controls --- */
+.touch-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.touch-ui .look-pad {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.touch-ui .joystick {
+  position: absolute;
+  left: 26px;
+  bottom: 30px;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.touch-ui .joystick-knob {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(120, 200, 255, 0.5);
+  border: 2px solid rgba(200, 230, 255, 0.8);
+}
+
+.touch-ui .touch-buttons {
+  position: absolute;
+  right: 22px;
+  bottom: 26px;
+  width: 200px;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  gap: 10px;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.touch-ui .tbtn {
+  pointer-events: auto;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(20, 30, 55, 0.5);
+  color: #fff;
+  font-size: 22px;
+  backdrop-filter: blur(3px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-ui .tbtn:active { background: rgba(120, 200, 255, 0.4); }
+.touch-ui .tbtn.jump { width: 74px; height: 74px; font-size: 26px; background: rgba(80, 150, 255, 0.4); }
+.touch-ui .tbtn.sprint { background: rgba(255, 180, 60, 0.35); }
+
+.touch-ui .pause-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
+}
+
 /* minimap frame (the WebGL top-down view renders into this corner) */
 .minimap-frame {
   position: fixed;

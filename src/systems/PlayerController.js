@@ -125,6 +125,7 @@ export default class PlayerController {
     this.heatDrift = 0;
     this.traction = 1; // <1 on wet ground -> skiddy (slower to change velocity)
     this.zoneSpeedMult = 1; // <1 in mud/sand zones
+    this.touchMove = null; // analog joystick input (null = use keyboard)
 
     this.keys = Object.create(null);
     this._tmpForward = new THREE.Vector3();
@@ -477,6 +478,7 @@ export default class PlayerController {
     this.heatDrift = 0;
     this.traction = 1;
     this.zoneSpeedMult = 1;
+    this.touchMove = null;
     this.diving = false;
     this.diveTime = 0;
     this.rolling = false;
@@ -686,15 +688,37 @@ export default class PlayerController {
     this.pitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, this.pitch));
   }
 
+  /** Touch look — drag deltas in pixels (no pointer lock needed). */
+  lookDelta(dx, dy) {
+    const s = MOUSE_SENSITIVITY * (this.sensitivity ?? 1) * 1.6;
+    this.yaw -= dx * s;
+    this.pitch -= dy * s;
+    this.pitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, this.pitch));
+  }
+
+  /** Analog move from a touch joystick: forward (f) and right (r), each -1..1.
+   *  Pass (0,0) to release and fall back to the keyboard. */
+  setMoveAxis(f, r) {
+    if (Math.abs(f) < 0.05 && Math.abs(r) < 0.05) this.touchMove = null;
+    else this.touchMove = { f, r };
+  }
+
   _wishDirection() {
     this._tmpForward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     this._tmpRight.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
+    this._move.set(0, 0, 0);
+    if (this.touchMove) {
+      // Analog: preserve magnitude (light push = walk), clamp to 1.
+      this._move.addScaledVector(this._tmpForward, this.touchMove.f);
+      this._move.addScaledVector(this._tmpRight, this.touchMove.r);
+      if (this._move.lengthSq() > 1) this._move.normalize();
+      return this._move;
+    }
+
     const k = this.keys;
     const f = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
     const r = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0);
-
-    this._move.set(0, 0, 0);
     this._move.addScaledVector(this._tmpForward, f);
     this._move.addScaledVector(this._tmpRight, r);
     if (this._move.lengthSq() > 1e-4) this._move.normalize();
