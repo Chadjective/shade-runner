@@ -37,10 +37,13 @@ substantial subsystem or collision-heavy work.
 > defensive fallback); **ledge-grab + wall-run** (with wall-jump); a **desert
 > biome** ("The Furnace", L5) and an **endless mode** ("The Long Run", L6,
 > procedural + furthest-distance leaderboard); and a live **GitHub Pages
-> deploy** (now 6 levels); and **mobile/touch controls** (analog joystick,
-> drag-look, action buttons, mobile perf tweak). Remaining: **tutorial /
-> onboarding** — the last roadmap item. (Stretch: more biomes, level editor,
-> deeper perf pass.)
+> deploy** (now 6 levels); **mobile/touch controls** (analog joystick,
+> drag-look, action buttons, mobile perf tweak); and **tutorial/onboarding**
+> (position-triggered tips on Level 1 + a Tips toggle).
+>
+> ✅ **The roadmap is complete — every planned phase (infra + A–G) is shipped
+> and live.** Anything further is stretch/polish: more biomes, a level editor,
+> a deeper perf pass, and tuning from real playtester feedback.
 
 ## 🔧 Cross-cutting infrastructure (build these first — they unblock many items)
 
