@@ -1,4 +1,35 @@
 import { DIFFICULTIES } from '../utils/constants.js';
+import { BODY_COLORS, TRAIL_COLORS, isUnlocked, UNLOCK_HINT } from '../cosmetics.js';
+
+function lifetimeStats() {
+  const g = (k) => { try { return parseFloat(localStorage.getItem(k)) || 0; } catch { return 0; } };
+  let medals = { gold: 0, silver: 0, bronze: 0 };
+  try { for (let i = 0; i < 8; i++) { const m = localStorage.getItem(`sr.medal.${i}`); if (m) medals[m] += 1; } } catch { /* ignore */ }
+  return { runs: g('sr.stat.runs'), dist: Math.round(g('sr.stat.dist')), deaths: g('sr.stat.deaths'), medals };
+}
+
+function Swatches({ list, selected, onSelect }) {
+  return (
+    <div className="swatches">
+      {list.map((c) => {
+        const unlocked = isUnlocked(c);
+        const hex = `#${c.hex.toString(16).padStart(6, '0')}`;
+        return (
+          <button
+            key={c.id}
+            className={`swatch ${selected === c.id ? 'on' : ''} ${unlocked ? '' : 'locked'}`}
+            style={{ background: hex }}
+            title={unlocked ? c.name : `${c.name} — ${UNLOCK_HINT[c.unlock] || 'locked'}`}
+            onClick={() => unlocked && onSelect(c.id)}
+            aria-label={c.name}
+          >
+            {!unlocked && <span className="lock">🔒</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function bestTime(i) {
   try {
@@ -36,7 +67,9 @@ export default function MainMenu({
   levels, onStart, reduceFlashing, onToggleReduceFlashing, difficulty, onSetDifficulty,
   muted, onToggleMuted, sensitivity = 1, onSetSensitivity, minimap = true, onToggleMinimap,
   bloom = true, onToggleBloom, tips = true, onToggleTips,
+  bodyColor = 'azure', onSetBodyColor, trailColor = 'cyan', onSetTrailColor,
 }) {
+  const stats = lifetimeStats();
   return (
     <div className="overlay menu">
       <div className="tagline">Stay cool. Stay alive.</div>
@@ -124,6 +157,15 @@ export default function MainMenu({
         <button className={`menu-toggle ${tips ? 'on' : ''}`} onClick={onToggleTips} aria-pressed={tips}>
           {tips ? '💡 Tips on' : '💡 Tips off'}
         </button>
+      </div>
+
+      <div className="customize">
+        <div className="customize-group"><span>Body</span><Swatches list={BODY_COLORS} selected={bodyColor} onSelect={onSetBodyColor} /></div>
+        <div className="customize-group"><span>Trail</span><Swatches list={TRAIL_COLORS} selected={trailColor} onSelect={onSetTrailColor} /></div>
+      </div>
+
+      <div className="lifetime-stats">
+        {stats.runs} runs · {stats.dist}m · {stats.deaths} deaths · 🥇{stats.medals.gold} 🥈{stats.medals.silver} 🥉{stats.medals.bronze}
       </div>
     </div>
   );

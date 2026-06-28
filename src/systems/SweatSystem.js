@@ -17,19 +17,20 @@ const FALL_G = 12;
 const TRAIL_LIFE = 2.4; // seconds a ground drop lingers before fully fading
 
 export default class SweatSystem {
-  constructor(scene, max = 80) {
+  constructor(scene, max = 80, trailColor = 0xbfe6ff) {
     this.scene = scene;
     this.max = max;
     this.cursor = 0;
     this.bodyTimer = 0;
     this._seenFootstep = 0;
 
+    const emissive = new THREE.Color(trailColor).multiplyScalar(0.55);
     const geo = new THREE.SphereGeometry(0.07, 8, 6);
     this.pool = [];
     for (let i = 0; i < max; i++) {
       const mat = new THREE.MeshStandardMaterial({
-        color: 0xbfe6ff,
-        emissive: 0x2f7fc0,
+        color: trailColor,
+        emissive,
         emissiveIntensity: 0.5,
         roughness: 0.25,
         transparent: true,

@@ -64,9 +64,10 @@ const FULL_HALF_Y = PLAYER_HEIGHT / 2;
  * (open = mobile shade, slower, and a slow glide in mid-air), G sunglasses.
  */
 export default class PlayerController {
-  constructor(scene, domElement) {
+  constructor(scene, domElement, opts = {}) {
     this.scene = scene;
     this.domElement = domElement;
+    this.bodyColor = opts.bodyColor ?? 0x3d8bff; // cosmetic body tint
     this.velocity = new THREE.Vector3();
     this.yaw = 0;
     this.pitch = 0.42;
@@ -159,9 +160,12 @@ export default class PlayerController {
   _buildMesh() {
     const group = new THREE.Group();
 
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3d8bff, roughness: 0.55, metalness: 0.05, emissive: 0x0a1c44, emissiveIntensity: 0.4 });
-    const limbMat = new THREE.MeshStandardMaterial({ color: 0x2f6fd0, roughness: 0.6, emissive: 0x081634, emissiveIntensity: 0.4 });
-    const headMat = new THREE.MeshStandardMaterial({ color: 0x9ec5ff, roughness: 0.5 });
+    const bodyCol = new THREE.Color(this.bodyColor);
+    const limbCol = bodyCol.clone().multiplyScalar(0.72); // limbs a shade darker
+    const headCol = bodyCol.clone().lerp(new THREE.Color(0xffffff), 0.55); // light tint of body
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyCol, roughness: 0.55, metalness: 0.05, emissive: 0x0a1c44, emissiveIntensity: 0.4 });
+    const limbMat = new THREE.MeshStandardMaterial({ color: limbCol, roughness: 0.6, emissive: 0x081634, emissiveIntensity: 0.4 });
+    const headMat = new THREE.MeshStandardMaterial({ color: headCol, roughness: 0.5 });
     const faceMat = new THREE.MeshStandardMaterial({ color: 0xfff0c0, emissive: 0xffcf6a, emissiveIntensity: 0.9, roughness: 0.3 });
 
     const rig = new THREE.Group();

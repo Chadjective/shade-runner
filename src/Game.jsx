@@ -61,7 +61,7 @@ const ITEM_LABEL = { water: '+35 Water', sunscreen: 'Sunscreen!', umbrella: 'Umb
  * Pointer lock drives a simple pause: lose the lock (Esc) and the world freezes
  * with a "click to resume" overlay; regaining it resumes.
  */
-export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, bloom = true, reduceFlashing = false, tips = true, onStats, onDeath, onWin }) {
+export default function Game({ levelIndex = 0, difficulty = 'normal', muted = false, sensitivity = 1, minimap = true, bloom = true, reduceFlashing = false, tips = true, bodyHex = 0x3d8bff, trailHex = 0xbfe6ff, onStats, onDeath, onWin }) {
   const mountRef = useRef(null);
   const [paused, setPaused] = useState(true);
   const startRef = useRef(null); // function to (re)start the run + grab the mouse
@@ -128,7 +128,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
     const shade = new ShadeDetector([...level.occluders, ...traffic.occluders, ...dynamicShade.occluders, ...crowd.occluders]);
     const health = new HealthSystem();
     const items = new ItemSystem(scene, level.items || []);
-    const sweat = new SweatSystem(scene);
+    const sweat = new SweatSystem(scene, 80, trailHex);
     const zip = new ZiplineSystem(scene, level.ziplines || []);
     const wind = new WindSystem(level.wind);
     const windTells = new WindTellSystem(scene, level.windTells || []);
@@ -153,7 +153,7 @@ export default function Game({ levelIndex = 0, difficulty = 'normal', muted = fa
       scene.add(m);
       return m;
     });
-    const player = new PlayerController(scene, renderer.domElement);
+    const player = new PlayerController(scene, renderer.domElement, { bodyColor: bodyHex });
     player.reset(level.startPos, level.startYaw);
     player.sensitivity = sensitivity;
     player.enable();

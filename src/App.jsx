@@ -7,6 +7,7 @@ import LevelComplete from './ui/LevelComplete.jsx';
 import WinScreen from './ui/WinScreen.jsx';
 import { LEVELS, LEVEL_COUNT } from './level/index.js';
 import { MAX_HEALTH } from './utils/constants.js';
+import { BODY_COLORS, TRAIL_COLORS, hexOf } from './cosmetics.js';
 
 const EMPTY_STATS = { health: MAX_HEALTH, inSun: false, exposure: 0, time: 0, sunProgress: 0, sunscreen: 0, levelName: '', pickup: '', pickupId: 0 };
 
@@ -63,6 +64,18 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('sr.tips', tips ? '1' : '0'); } catch { /* ignore */ }
   }, [tips]);
+  const [bodyColor, setBodyColor] = useState(() => {
+    try { return localStorage.getItem('sr.cos.body') || 'azure'; } catch { return 'azure'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sr.cos.body', bodyColor); } catch { /* ignore */ }
+  }, [bodyColor]);
+  const [trailColor, setTrailColor] = useState(() => {
+    try { return localStorage.getItem('sr.cos.trail') || 'cyan'; } catch { return 'cyan'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sr.cos.trail', trailColor); } catch { /* ignore */ }
+  }, [trailColor]);
 
   // Tame the flashing/shimmer effects (flares, heat-haze, dust) for
   // photosensitivity. A root class drives the CSS; the choice is persisted.
@@ -97,7 +110,7 @@ export default function App() {
     <>
       {phase === 'playing' && (
         <>
-          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} sensitivity={sensitivity} minimap={minimap} bloom={bloom} reduceFlashing={reduceFlashing} tips={tips} onStats={onStats} onDeath={onDeath} onWin={onWin} />
+          <Game key={runId} levelIndex={level} difficulty={difficulty} muted={muted} sensitivity={sensitivity} minimap={minimap} bloom={bloom} reduceFlashing={reduceFlashing} tips={tips} bodyHex={hexOf(BODY_COLORS, bodyColor)} trailHex={hexOf(TRAIL_COLORS, trailColor)} onStats={onStats} onDeath={onDeath} onWin={onWin} />
           <HUD stats={stats} reduceFlashing={reduceFlashing} />
         </>
       )}
@@ -120,6 +133,10 @@ export default function App() {
           onToggleBloom={() => setBloom((v) => !v)}
           tips={tips}
           onToggleTips={() => setTips((v) => !v)}
+          bodyColor={bodyColor}
+          onSetBodyColor={setBodyColor}
+          trailColor={trailColor}
+          onSetTrailColor={setTrailColor}
         />
       )}
 
