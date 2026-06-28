@@ -31,9 +31,11 @@ substantial subsystem or collision-heavy work.
 > beds + footstep/pickup/jump/flare/death/win SFX + mute toggle); **Phase D**
 > (crowds with parasols = mobile shade + soft obstacles, wind-blown tumbleweeds,
 > wind tells); **Phase E** (wet towel, long sleeves w/ overheat trade-off,
-> sneakers, ice drink); and a live **GitHub Pages deploy** (4 levels). Remaining:
-> ledge-hang/wall-run, Phase G (minimap, ghost/leaderboard, tutorial, settings
-> UI, mobile, polish), and Phase F's biome/endless modes.
+> sneakers, ice drink); **Phase G so far** (shade minimap, ghost replay + local
+> leaderboard/best-times, mouse-sensitivity slider — on top of the earlier
+> audio/a11y/checkpoints/difficulty); and a live **GitHub Pages deploy** (4
+> levels). Remaining: ledge-hang/wall-run, the rest of Phase G (tutorial,
+> mobile/touch, post-processing polish), and Phase F's biome/endless modes.
 
 ## 🔧 Cross-cutting infrastructure (build these first — they unblock many items)
 
